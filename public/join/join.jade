@@ -1,0 +1,43 @@
+doctype html
+html
+	head
+		title Join a game
+		link(rel='stylesheet', href='/lib/bootstrap/css/bootstrap.min.css')
+		link(rel='stylesheet', href='/join/join.css')
+		script(src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js")
+		script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js")
+		script(src="/common/common.js")
+	body
+		if gameID === undefined
+			div(class="col-sm-3", id="wrapperJoin")
+				h1(id="title") Join a game
+				div(class="input-group")
+					input(type="text"
+						class="form-control input-lg"
+						placeholder="Name"
+						maxlength="24"
+						data-bind="value: playerID, valueUpdate : 'afterkeydown'") 
+					input(type="text"
+						class="form-control input-lg"
+						placeholder="Game ID"
+						maxlength="4"
+						data-bind="value: gameID, valueUpdate : 'afterkeydown'") 
+
+					span(class="input-group-btn")
+						button(class="btn btn-primary  input-lg"
+							data-bind="click: joinLobby, enable: isJoinButtonEnabled()") Join
+		else
+			script.
+				window.gameID = "#{gameID}";
+				window.playerID = "#{playerID}";
+			h1 Active lobby
+			h1 Your game ID is: #{gameID}
+			h1 Your player ID is: #{playerID}
+			h3 WS connection status: 
+				span(data-bind="text: wsConnectionStatus()")
+
+		script(src="/join/join.js")
+
+
+
+		

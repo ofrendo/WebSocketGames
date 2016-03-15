@@ -1,0 +1,40 @@
+doctype html
+html
+	head
+		title Create a game
+		link(rel='stylesheet', href='/lib/bootstrap/css/bootstrap.min.css')
+		link(rel='stylesheet', href='/create/create.css')
+		script(src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js")
+		script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js")
+		script(src="../common/common.js")
+	body
+		div(data-bind="visible: !isLobbyActive()")
+
+			h1 Create a game
+			p #{config.length} game available:
+			ul(class="ulCreateList list-group")
+				each game in config
+					li(class="list-group-item col-sm-4")= game.title
+						button(
+							class="buttonCreateGame btn btn-primary"
+							data-bind="click: createGame.bind($data, '#{game.name}'), enable: isCreateButtonEnabled()"
+							).
+								Create game for #{game.title}
+
+
+		div(data-bind="visible: isLobbyActive()")
+			h1 Active lobby
+			h1 Your game ID is: 
+				span(data-bind="text: gameID()")
+			h3 WS connection status: 
+				span(data-bind="text: wsConnectionStatus()")
+			h3 Players connected:
+			ul(class="ulCreateList list-group")
+
+			button(
+				class="btn btn-danger"
+				data-bind="click: closeGame, enable: isCloseButtonEnabled()"
+				) Quit (close lobby)
+
+
+		script(src='create.js')
