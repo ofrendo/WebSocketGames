@@ -28,9 +28,11 @@ html
 							data-bind="click: joinLobby, enable: isJoinButtonEnabled()") Join
 		else
 			script.
+				window.gameConfig = JSON.parse('!{gameConfigString}');
 				window.gameID = "#{gameID}";
 				window.playerID = "#{playerID}";
-			h1 Active lobby
+			h1 Active player lobby: 
+				span(data-bind="text: gameTitle()")
 			h1 Your game ID is: #{gameID}
 			h1 Your player ID is: #{playerID}
 			h3 WS connection status: 

@@ -2,6 +2,19 @@
 	{
 		"name": "bomberman",
 		"title": "Bomberman",
-		"path": "bomberman"
+		"path": "bomberman",
+		"lobbyParams": {
+			"minPlayers": 1,
+			"maxPlayers": 4 
+		}
+	},
+	{
+		"name": "tictactoe",
+		"title": "Tic Tac Toe",
+		"path": "tictactoe",
+		"lobbyParams": {
+			"minPlayers": 1,
+			"maxPlayers": 2 
+		}
 	}
 ]

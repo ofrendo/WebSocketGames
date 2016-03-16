@@ -8,6 +8,22 @@
 		HOST: "host"
 	};
 
+	exports.MESSAGE_TYPES = {
+		// Lobby messages
+		PLAYER_JOINED: "playerJoined",
+		PLAYER_LEFT: "playerLeft",
+		CHAT_MESSAGE: "chatMessage",
+
+		// Switching to game
+		GAME_STARTING: "gameStarting",
+		GAME_STARTED: "gameStarted"
+
+		// During game
+	};
+
+	exports.LOBBY_CONST = {
+		GAME_STARTING_DELAY: 5
+	};
 
 
 

@@ -12,29 +12,39 @@ html
 
 			h1 Create a game
 			p #{config.length} game available:
-			ul(class="ulCreateList list-group")
+			ul(class="ulCreateList list-group col-sm-8")
 				each game in config
-					li(class="list-group-item col-sm-4")= game.title
-						button(
-							class="buttonCreateGame btn btn-primary"
-							data-bind="click: createGame.bind($data, '#{game.name}'), enable: isCreateButtonEnabled()"
-							).
-								Create game for #{game.title}
+					li(class="list-group-item clearfix")
+						span= game.title
+						span(class="pull-right") 
+							button(
+								class="buttonCreateGame btn btn-primary"
+								data-bind="click: createGame.bind($data, '#{game.name}'), enable: isCreateButtonEnabled()"
+								).
+									Create game for #{game.title}
 
 
 		div(data-bind="visible: isLobbyActive()")
-			h1 Active lobby
+			h1 Active host lobby: 
+				span(data-bind="text: gameTitle()")
 			h1 Your game ID is: 
 				span(data-bind="text: gameID()")
 			h3 WS connection status: 
 				span(data-bind="text: wsConnectionStatus()")
 			h3 Players connected:
-			ul(class="ulCreateList list-group")
-
+			ul(class="ulCreateList list-group col-sm-4", data-bind="foreach: players")
+				li(class="list-group-item", data-bind="text: playerID") 
 			button(
+				id="buttonStartGame"
+				class="btn btn-primary"
+				data-bind="click: startGame, enable: isStartButtonEnabled(), text: startButtonText()"
+				) 
+			button(
+				id="buttonQuitGame"
 				class="btn btn-danger"
 				data-bind="click: closeGame, enable: isCloseButtonEnabled()"
 				) Quit (close lobby)
+
 
 
 		script(src='create.js')

@@ -42,6 +42,12 @@ function LobbyClient() {
 	// In active lobby
 	this.isQuitButtonEnabled = ko.observable(true);
 	this.wsConnectionStatus = ko.observable(false);
+	this.gameConfig = ko.observable(window.gameConfig);
+	this.gameTitle = ko.computed(function() {
+		return this.gameConfig() !== undefined ?
+			this.gameConfig().title :
+			null
+	}, this);
 	this.ws = null;
 
 	function onPageLoad() {
@@ -55,6 +61,9 @@ function LobbyClient() {
 	onPageLoad();
 	//self.isLobbyActive(true);
 				//self.gameID(response);
+	this.onPageUnload = function() {
+		self.ws.close();
+	};
 
 	function openWSConnection(gameID, playerID) {
 		var host = "ws://" + location.hostname + ":3001/ws/" + gameID + "/lobby?" + 
@@ -86,11 +95,13 @@ function LobbyClient() {
 			console.log("Lobby ws connection closed.");
 			console.log(e);
 			self.wsConnectionStatus(false);
-		}
+		};
 		//onerror
 	}
-	
 
 }
 
-ko.applyBindings(new LobbyClient());
+var LobbyClient = new LobbyClient();
+window.onbeforeunload = LobbyClient.onPageUnload;
+
+ko.applyBindings(LobbyClient);

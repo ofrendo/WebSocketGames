@@ -41,24 +41,52 @@ var WSManager = (function() {
 
 		switch (connectionType) {
 			case Common.CONNECTION_TYPES.PLAYER: 
-				// On player join: broadcast to all in this lobby
-				con.playerID = getParameterByName("playerID", wsUrl);
-				conManager.broadcastLobbyMessage("playerID " + con.playerID + " has joined. Current player count: " + (conManager.getPlayerCount()+1));
+				var playerID = getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
+				
+				// Notify conManager for game
+				con.playerID = playerID;
+				conManager.addLobbyConnection(con);
+
+				// Send broadcast message that player has joined
+				var m = JSON.stringify({
+					messageType: Common.MESSAGE_TYPES.PLAYER_JOINED,
+					playerCount: conManager.getPlayerCount(),
+					players: conManager.getPlayers()
+				});
+				conManager.broadcastLobbyMessage(m);
+				console.log("Player " + playerID + " for " + gameID + " joined.");
 				break;
 			case Common.CONNECTION_TYPES.HOST: 
 				// On host join
+				conManager.addLobbyConnection(con);
 				console.log("Host for " + gameID + " joined.");
 				break;
 		}
 
-		conManager.addLobbyConnection(con);
+		console.log("Connections: " + conManager.getConnectionCount());
+		
 
 		ws.on('message', function(message) {
 	    	//wss.broadcast(message);
 		});
 		ws.on('close', function(e) {
 			conManager.removeLobbyConnection(con);
-			conManager.broadcastLobbyMessage("current player count: " + conManager.getPlayerCount());
+			switch (connectionType) {
+				case Common.CONNECTION_TYPES.PLAYER: 
+					// Send broadcast message that player has left
+					var m = JSON.stringify({
+						messageType: Common.MESSAGE_TYPES.PLAYER_LEFT,
+						playerCount: conManager.getPlayerCount(),
+						players: conManager.getPlayers()
+					});
+					conManager.broadcastLobbyMessage(m);
+					console.log("Player " + playerID + " for " + gameID + " left.");
+					break;
+				case Common.CONNECTION_TYPES.HOST: 
+					console.log("Host for " + gameID + " left.");
+					break;
+			}
+			console.log("Connections: " + conManager.getConnectionCount());
 		});
 
 	}

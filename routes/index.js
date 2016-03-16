@@ -16,13 +16,13 @@ router.get("/create", function(req, res, next) {
 // API call POST create new game
 router.post("/create/:gameName", function(req, res, next) {
 	var gameName = req.params.gameName;
-	var gameID = GameManager.createGame(gameName);
-	if (gameID === null) {
+	var result = GameManager.createGame(gameName);
+	if (result === null) {
 		// Send 404 if no game with gameName could be found
 		res.status(404).send();
 	}
 	else {
-		res.status(200).send(gameID);
+		res.status(200).send(result);
 	}
 });
 // API call DELETE close game
@@ -64,12 +64,15 @@ router.head("/join/:gameID/:playerID", function(req, res, next) {
 router.get("/join/:gameID/:playerID", function(req, res, next) {
 	var gameID = req.params.gameID;
 	var playerID = req.params.playerID;
+	console.log("Player " + playerID + " for " + gameID + " attemping to join...");
 	if (GameManager.isValidGameID(gameID)) {
 		if (GameManager.isValidPlayerID(gameID, playerID)) {
-			res.render("join/join", {gameID: gameID, playerID: playerID});
+			var game = GameManager.getGameByID(gameID);
+			res.render("join/join", {gameID: gameID, playerID: playerID, gameConfigString: JSON.stringify(game.getGameConfig())});
 		}
 		else {
 			// Game exists but playerID already taken
+			console.log("Player " + playerID + " for " + gameID + " is invalid.");
 			res.status(409).send();
 		}
 		
@@ -78,16 +81,31 @@ router.get("/join/:gameID/:playerID", function(req, res, next) {
 		// Game does not exist
 		res.status(404).send();
 	}
-})
+});
 
-// /join for input field for redirection to call below
-// /join/:gameID to join lobby 
-// if does exist redirect
-// if doesnt exist 404 and redirect to join
+router.post("/start/:gameID", function(req, res, next) {
+	var gameID = req.params.gameID;
+	if (GameManager.isValidGameID(gameID)) {
+		var game = GameManager.getGameByID(gameID);
+		var result = game.start();
+		if (result === true) {
+			res.status(200).send();
+		}
+		else {
+			res.status(403).send();
+		}
+	}
+	else {
+		// Game does not exist
+		res.status(404).send();
+	}
+});
+
+router.get("/view/:gameID", function(req, res, next) {
+	
+});
 
 // /view/:gameID to view a game
-
-
 // /play/:gameID to play game, perhaps with :playerID param
 
 

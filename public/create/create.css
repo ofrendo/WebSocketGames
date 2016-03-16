@@ -10,3 +10,8 @@ body {
 .buttonCreateGame {
 	float: right;
 }
+
+#buttonStartGame, #buttonQuitGame {
+	clear: both;
+	float: left;
+}
