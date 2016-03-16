@@ -19,7 +19,7 @@ router.post("/create/:gameName", function(req, res, next) {
 	var result = GameManager.createGame(gameName);
 	if (result === null) {
 		// Send 404 if no game with gameName could be found
-		res.status(404).send();
+		res.status(404).send("Game not found");
 	}
 	else {
 		res.status(200).send(result);
@@ -52,13 +52,12 @@ router.head("/join/:gameID/:playerID", function(req, res, next) {
 		}
 		else {
 			// Game exists but playerID already taken
-			res.status(409).send();
+			res.status(409).send("PlayerID already exists");
 		}
-		
 	}
 	else {
 		// Game does not exist
-		res.status(404).send();
+		res.status(404).send("Game not found");
 	}
 });
 router.get("/join/:gameID/:playerID", function(req, res, next) {
@@ -73,13 +72,13 @@ router.get("/join/:gameID/:playerID", function(req, res, next) {
 		else {
 			// Game exists but playerID already taken
 			console.log("Player " + playerID + " for " + gameID + " is invalid.");
-			res.status(409).send();
+			res.status(409).send("PlayerID already exists");
 		}
 		
 	}
 	else {
 		// Game does not exist
-		res.status(404).send();
+		res.status(404).send("Game not found");
 	}
 });
 
@@ -92,21 +91,73 @@ router.post("/start/:gameID", function(req, res, next) {
 			res.status(200).send();
 		}
 		else {
-			res.status(403).send();
+			res.status(403).send("Game found but already started");
 		}
 	}
 	else {
 		// Game does not exist
-		res.status(404).send();
+		res.status(404).send("Game not found");
 	}
 });
 
+// To view a game
 router.get("/view/:gameID", function(req, res, next) {
-	
+	var gameID = req.params.gameID;
+	if (GameManager.isValidGameID(gameID)) {
+		var game = GameManager.getGameByID(gameID);
+		var path = game.getGameConfig().path;
+		if (game.isStarted()) {
+			var args = {
+				gameID: gameID, 
+				gameConfig: game.getGameConfig(),
+				gameConfigString:  JSON.stringify(game.getGameConfig())
+			};
+			res.render("games/" + path + "/view_game/view", args);
+		}
+		else {
+			res.status(403).send("Game not started yet");
+		}
+	}
+	else {
+		// Game does not exist
+		res.status(404).send("Game not found");
+	}
 });
 
-// /view/:gameID to view a game
-// /play/:gameID to play game, perhaps with :playerID param
+// To play a game
+router.get("/play/:gameID/:playerID", function(req, res, next) {
+	var gameID = req.params.gameID;
+	var playerID = req.params.playerID;
+	if (GameManager.isValidGameID(gameID)) {
+		if (GameManager.isValidPlayerID(gameID, playerID)) {
+
+			var game = GameManager.getGameByID(gameID);
+			var path = game.getGameConfig().path;
+			if (game.isStarted()) {
+				var args = {
+					gameID: gameID, 
+					playerID: playerID,
+					gameConfig: game.getGameConfig(),
+					gameConfigString:  JSON.stringify(game.getGameConfig())
+				};
+				res.render("games/" + path + "/view_client/view", args);
+			}
+			else {
+				res.status(403).send("Game not started yet");
+			}
+
+		}
+		else {
+			// Game exists but playerID already taken
+			console.log("Player " + playerID + " for " + gameID + " is invalid.");
+			res.status(409).send("PlayerID already exists");
+		}
+	}
+	else {
+		// Game does not exist
+		res.status(404).send("Game not found");
+	}
+});
 
 
 module.exports = router;

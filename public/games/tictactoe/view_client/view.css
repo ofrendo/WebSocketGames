@@ -1,0 +1,9 @@
+body {
+	overflow: hidden;
+}
+
+#divFPSMeter {
+	position: absolute;
+	right: 150px;
+	top: 20px;
+}

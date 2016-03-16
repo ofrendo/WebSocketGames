@@ -1,0 +1,16 @@
+doctype html
+html
+	head
+		title Viewing a game
+		link(rel='stylesheet', href='/lib/bootstrap/css/bootstrap.min.css')
+		link(rel='stylesheet', href='/create/create.css')
+		script(src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js")
+		script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js")
+		script(src="/common/common.js")
+	body
+		script.
+			window.gameConfig = JSON.parse('!{gameConfigString}');
+			window.gameID = "#{gameID}";
+		h1 Viewing game #{gameID}
+
+		script(src="/games/tictactoe/view_game/view.js")

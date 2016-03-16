@@ -5,10 +5,14 @@
 
 	exports.CONNECTION_TYPES = {
 		PLAYER: "player",
-		HOST: "host"
+		HOST: "host",
+		VIEWER: "viewer"
 	};
 
 	exports.MESSAGE_TYPES = {
+		// Common
+		PING: "ping",
+
 		// Lobby messages
 		PLAYER_JOINED: "playerJoined",
 		PLAYER_LEFT: "playerLeft",
@@ -16,9 +20,15 @@
 
 		// Switching to game
 		GAME_STARTING: "gameStarting",
-		GAME_STARTED: "gameStarted"
+		GAME_STARTED: "gameStarted",
+		WAITING_FOR: "waitingFor",
 
 		// During game
+		// TicTacToe
+		TTT_INIT: "ttt_init",
+		TTT_STATE: "ttt_state",
+		TTT_MOVE: "ttt_move"
+
 	};
 
 	exports.LOBBY_CONST = {

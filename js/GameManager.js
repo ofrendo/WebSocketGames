@@ -2,39 +2,56 @@ var fs = require("fs");
 var sha1 = require("sha1");
 var Common = require("../public/common/common");
 
+var gameServers = {};
 
 var ConManager = function() {
+	var self = this;
+
 	// con structure
 	// con.ws The WebSocket
 	// con.connectionType see Common.CONNECTION_TYPES
 	// con.playerID if connectionType === Common.CONNECTION_TYPES.PLAYER
-	var lobbyConnections = [];
+	var connections = [];
+	this.gameServer = null;
 
-	this.addLobbyConnection = function(con) {
-		// TODO: Check if maxPlayers is reached
-		lobbyConnections.push(con);
+	function addConnection(con) {
+		connections.push(con);
 	};
-	this.removeLobbyConnection = function(con) {
-		for (var i=0; i<lobbyConnections.length;i++) {
-			if (con === lobbyConnections[i]) {
-				lobbyConnections.splice(i, 1);
+
+	this.addPlayerConnection = function(con) {
+		// TODO: Check if maxPlayers is reached
+		addConnection(con);
+		if (this.isGameServerActive() === true) {
+			this.getGameServer().onPlayerJoin(con.playerID);
+		}
+	};
+	this.addOtherConnection = function(con) {
+		addConnection(con);
+	};
+	this.removeConnection = function(con) {
+		for (var i=0; i<connections.length;i++) {
+			if (con === connections[i]) {
+				connections.splice(i, 1);
+				if (this.isGameServerActive() === true) {
+					this.getGameServer().onPlayerLeave(con.playerID);
+				}
 				return true;
 			}
 		}
 		return false;
 	};
 	this.onCloseGame = function() {
-		for (var i=0; i<lobbyConnections.length;i++) {
-			lobbyConnections[i].ws.close();
+		for (var i=0; i<connections.length;i++) {
+			connections[i].ws.close();
 		}
 	};
-	this.broadcastLobbyMessage = function(message) {
-		for (i=0;i<lobbyConnections.length;i++) 
-			lobbyConnections[i].ws.send(message);
+	this.broadcastMessage = function(message) {
+		for (i=0;i<connections.length;i++) 
+			connections[i].ws.send(message);
 	};
 	this.isValidPlayerID = function(playerID) {
-		for (i=0;i<lobbyConnections.length;i++) {
-			if (lobbyConnections[i].playerID === playerID) {
+		for (i=0;i<connections.length;i++) {
+			if (connections[i].playerID === playerID) {
 				return false;
 			}
 		}
@@ -42,28 +59,51 @@ var ConManager = function() {
 	};
 	this.getPlayerCount = function() {
 		var count = 0;
-		for (var i=0;i<lobbyConnections.length;i++) {
-			if (lobbyConnections[i].connectionType === Common.CONNECTION_TYPES.PLAYER) {
+		for (var i=0;i<connections.length;i++) {
+			if (connections[i].connectionType === Common.CONNECTION_TYPES.PLAYER) {
 				count++;
 			}
 		}
 		return count;
 	};
 	this.getConnectionCount = function() {
-		return lobbyConnections.length;
+		return connections.length;
 	};
 	this.getPlayers = function() {
 		var result = [];
-		for (var i=0;i<lobbyConnections.length;i++) {
-			if (lobbyConnections[i].connectionType === Common.CONNECTION_TYPES.PLAYER) {
+		for (var i=0;i<connections.length;i++) {
+			if (connections[i].connectionType === Common.CONNECTION_TYPES.PLAYER) {
 				var player = {
-					playerID: lobbyConnections[i].playerID
+					playerID: connections[i].playerID
 				};
 				result.push(player);
 			}
 		}
 		return result;
 	};
+	this.getPlayerIDs = function() {
+		var result = [];
+		for (var i=0;i<connections.length;i++) {
+			if (connections[i].connectionType === Common.CONNECTION_TYPES.PLAYER) {
+				result.push(connections[i].playerID);
+			}
+		}
+		return result;
+	};
+	this.isGameServerActive = function() {
+		return !(this.getGameServer() === null);
+	}
+	this.getGameServer = function() {
+		return this.gameServer;
+	};
+	this.setGameServer = function(gameServer) {
+		this.gameServer = gameServer;
+		this.gameServer.broadcastMessage = onGameServerBroadcast;
+	};
+
+	function onGameServerBroadcast(m) {
+		self.broadcastMessage(JSON.stringify(m));
+	}
 }
 
 var Game = function(gameID, gameConfig) {
@@ -80,15 +120,14 @@ var Game = function(gameID, gameConfig) {
 		return isStarted;
 	};
 
-	this.start = function() {
+	this.start = function(delay) {
 		// Return false if already started
 		if (this.isStarted()) {
 			return false;
 		}
 		isStarted = true;
-
 		// Broadcast starting message with delay
-		var countdown = Common.LOBBY_CONST.GAME_STARTING_DELAY;
+		var countdown = delay || Common.LOBBY_CONST.GAME_STARTING_DELAY;
 		var timer = setInterval(function() {
 			var m;
 			if (countdown !== 0) {
@@ -97,6 +136,7 @@ var Game = function(gameID, gameConfig) {
 					messageType: Common.MESSAGE_TYPES.GAME_STARTING,
 					remainingDelay: countdown
 				});
+				console.log(self.gameID + " Game starting in " + countdown + "...");
 				countdown--;
 			}
 			else {
@@ -104,8 +144,12 @@ var Game = function(gameID, gameConfig) {
 					messageType: Common.MESSAGE_TYPES.GAME_STARTED
 				});
 				clearInterval(timer);
+				console.log(self.gameID + " Game started.");
+
+				var gameServer = new gameServers[gameConfig.name](self.gameID, self.conManager.getPlayerIDs());
+				self.conManager.setGameServer(gameServer);
 			}
-			self.conManager.broadcastLobbyMessage(m);
+			self.conManager.broadcastMessage(m);
 		}, 1000);
 
 		return true;
@@ -120,6 +164,10 @@ var GameManager = (function() {
 	function loadConfigFile() {
 		var contents = fs.readFileSync("public/games/config.json");
 		contents = JSON.parse(contents);
+		for (var i=0;i<contents.length;i++) {
+			var serverPath = "../public/games/" + contents[i].path + "/game/GameServer.js";
+			gameServers[contents[i].name] = require(serverPath);
+		}
 		console.log("Loaded " + contents.length + " games.");
 		console.log(contents);
 		return contents;
@@ -205,6 +253,12 @@ var GameManager = (function() {
 		var newGame = new Game(gameID, gameConfig);
 		games[gameID] = newGame;
 	}
+	function createTestGameStarted(gameID) {
+		var gameConfig = module.config[0];
+		var newGame = new Game(gameID, gameConfig);
+		games[gameID] = newGame;
+		newGame.start(1);
+	}
 
 	function startGame(gameID) {
 		var game = getGameByID(gameID);
@@ -215,6 +269,7 @@ var GameManager = (function() {
 	module.config = loadConfigFile();
 	module.createGame = createGame;
 	module.createTestGame = createTestGame;
+	module.createTestGameStarted = createTestGameStarted;
 	module.closeGame = closeGame;
 	module.startGame = startGame;
 	module.isValidGameID = isValidGameID;
@@ -225,5 +280,6 @@ var GameManager = (function() {
 })();
 
 GameManager.createTestGame("0000");
+GameManager.createTestGameStarted("0001");
 
 module.exports = GameManager;

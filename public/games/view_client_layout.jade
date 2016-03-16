@@ -1,0 +1,17 @@
+doctype html
+html
+	head
+		title Playing #{gameConfig.title}
+		link(rel='stylesheet', href='/lib/bootstrap/css/bootstrap.min.css')
+		script(src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js")
+		script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js")
+		script(src="/lib/javascripts/fpsmeter.min.js")
+		script(src="/common/common.js")
+		block additionalHead
+	body
+		script.
+			window.gameConfig = JSON.parse('!{gameConfigString}');
+			window.gameID = "#{gameID}";
+			window.playerID = "#{playerID}";
+		div(id="divFPSMeter")
+		block content

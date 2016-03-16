@@ -10,11 +10,17 @@ var WSManager = (function() {
 	function init(wss) {
 		// WS paths: 
 		// /ws/:gameID/lobby (connectionType=host or connectionType=player&playerID=abcd)
-		// /ws/:gameID/game (dunno yet)
+		// /ws/:gameID/game (connectionType=viewer or connectionType=player&playerID=abcd)
 		wss.on('connection', function(ws) {
 			var wsUrl = ws.upgradeReq.url;
 			console.log("WSManager: New ws connection: " + wsUrl);
+
 			var gameID = getGameID(wsUrl);
+			if (!GameManager.isValidGameID(gameID)) {
+				ws.close(1, "Invalid game ID.");
+				return;
+			}
+
 			var wsHandler = getWSHandler(wsUrl);
 			wsHandler(ws, wsUrl, gameID);
 		});
@@ -42,45 +48,34 @@ var WSManager = (function() {
 		switch (connectionType) {
 			case Common.CONNECTION_TYPES.PLAYER: 
 				var playerID = getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
-				
+				if (!conManager.isValidPlayerID(playerID)) {
+					ws.close(1, "Player with playerID " + playerID + " already exists.");
+				}
+
 				// Notify conManager for game
 				con.playerID = playerID;
-				conManager.addLobbyConnection(con);
+				// TODO: Check if playerID already exists
+				conManager.addPlayerConnection(con);
 
 				// Send broadcast message that player has joined
-				var m = JSON.stringify({
-					messageType: Common.MESSAGE_TYPES.PLAYER_JOINED,
-					playerCount: conManager.getPlayerCount(),
-					players: conManager.getPlayers()
-				});
-				conManager.broadcastLobbyMessage(m);
-				console.log("Player " + playerID + " for " + gameID + " joined.");
+				onPlayerJoin(conManager, gameID, playerID);
 				break;
 			case Common.CONNECTION_TYPES.HOST: 
 				// On host join
-				conManager.addLobbyConnection(con);
+				conManager.addOtherConnection(con);
 				console.log("Host for " + gameID + " joined.");
 				break;
 		}
-
-		console.log("Connections: " + conManager.getConnectionCount());
-		
 
 		ws.on('message', function(message) {
 	    	//wss.broadcast(message);
 		});
 		ws.on('close', function(e) {
-			conManager.removeLobbyConnection(con);
+			conManager.removeConnection(con);
 			switch (connectionType) {
 				case Common.CONNECTION_TYPES.PLAYER: 
 					// Send broadcast message that player has left
-					var m = JSON.stringify({
-						messageType: Common.MESSAGE_TYPES.PLAYER_LEFT,
-						playerCount: conManager.getPlayerCount(),
-						players: conManager.getPlayers()
-					});
-					conManager.broadcastLobbyMessage(m);
-					console.log("Player " + playerID + " for " + gameID + " left.");
+					onPlayerJoin(conManager, gameID, playerID);
 					break;
 				case Common.CONNECTION_TYPES.HOST: 
 					console.log("Host for " + gameID + " left.");
@@ -89,11 +84,81 @@ var WSManager = (function() {
 			console.log("Connections: " + conManager.getConnectionCount());
 		});
 
+		console.log("Connections: " + conManager.getConnectionCount());
 	}
 
-
-	function handleGameWS() {
+	function handleGameWS(ws, wsUrl, gameID) {
+		if (!GameManager.isValidGameID(gameID)) {
+			ws.close(1, "Invalid game ID.");
+			return;
+		}
+		var connectionType = getParameterByName(Common.PARAM_NAME_CONNECTION_TYPES, wsUrl);
+		var game = GameManager.getGameByID(gameID);
+		switch (connectionType) {
+			case Common.CONNECTION_TYPES.VIEWER: 
+				handleGameWSViewer(ws, game, gameID);
+				break;
+			case Common.CONNECTION_TYPES.PLAYER: 
+				var playerID = getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
+				handleGameWSPlayer(ws, game, gameID, playerID)
+				break;
+			
+		}
+	}
+	function handleGameWSViewer(ws, game, gameID) {
+		console.log("WSManager: Viewer for " + gameID + " joined.");
 		// TODO
+	}	
+
+	function handleGameWSPlayer(ws, game, gameID, playerID) {
+		if (!game.conManager.isValidPlayerID(playerID)) {
+			ws.close(1, "Player with playerID " + playerID + " already exists.");
+		}
+
+		var con = {
+			ws: ws,
+			connectionType: Common.CONNECTION_TYPES.PLAYER,
+			playerID: playerID
+		};
+
+		// Send broadcast message that player has joined
+		onPlayerJoin(game.conManager, gameID, playerID);
+		game.conManager.addPlayerConnection(con);
+
+		ws.on('message', function(message) {
+	    	// Redirect message to game server
+	    	//console.log(message);
+	    	var m = JSON.parse(message);
+	    	switch(m.messageType) {
+	    		case Common.MESSAGE_TYPES.TTT_MOVE: 
+	    			game.conManager.getGameServer().onMove(m);
+	    			break;
+	    	}
+	    	// TODO: Could be chat message
+
+		});
+		ws.on('close', function(e) {
+			game.conManager.removeConnection(con);
+			onPlayerLeave(game.conManager, gameID, playerID);
+		});
+	}
+	function onPlayerJoin(conManager, gameID, playerID) {
+		var m = JSON.stringify({
+			messageType: Common.MESSAGE_TYPES.PLAYER_JOINED,
+			playerCount: conManager.getPlayerCount(),
+			players: conManager.getPlayers()
+		});
+		conManager.broadcastMessage(m);
+		console.log("WSManager: Player " + playerID + " for " + gameID + " joined.");
+	}
+	function onPlayerLeave(conManager, gameID, playerID) {
+		var m = JSON.stringify({
+			messageType: Common.MESSAGE_TYPES.PLAYER_LEFT,
+			playerCount: conManager.getPlayerCount(),
+			players: conManager.getPlayers()
+		});
+		conManager.broadcastMessage(m);
+		console.log("WSManager: Player " + playerID + " for " + gameID + " left.");
 	}
 
 	var module = {};
