@@ -31,19 +31,26 @@ function GameServer(gameID, playerIDs) {
 
 		if (self.playerIDs.length === 2) {
 			// PvP
+			state.playerSymbols = getRandomPlayerSymbols(self.playerIDs[0], self.playerIDs[1]);
+			state.turn = Math.random() > 0.5 ?
+				self.playerIDs[0] :
+				self.playerIDs[1];
 		}
 		else {
-			ai = new TTT_AI();
 			// AI player is needed
+			state.playerSymbols = getRandomPlayerSymbols(self.playerIDs[0], playerID_AI);
+			var aiPlayerSymbol = state.playerSymbols.playerX === playerID_AI ? "X" : "O";
+
 			state.turn = Math.random() > 0.5 ?
 				self.playerIDs[0] :
 				playerID_AI;
 
+			var isAIFirst = (state.turn === playerID_AI);
+			ai = new TTT_AI(aiPlayerSymbol, isAIFirst);
+
 			if (state.turn === playerID_AI) {
 				ai.doMove(state, self.onMove);
 			}
-
-			state.playerSymbols = getRandomPlayerSymbols(self.playerIDs[0], playerID_AI);
 		}
 		// Send init state to players
 		self.broadcastMessage({
@@ -98,7 +105,7 @@ function GameServer(gameID, playerIDs) {
 		else {
 			log("Waiting for people: ");
 			for (var i=0;i<notConnectedPlayers.length;i++) {
-				console.log(notConnectedPlayers[i]);
+				log(notConnectedPlayers[i]);
 			}
 		}
 	};
@@ -109,14 +116,14 @@ function GameServer(gameID, playerIDs) {
 	}
 
 	function run() {
-		if (this.isRunning === true) 
+		if (isRunning() === true) 
 			return false;
 		init();
 		log("Running game.");
-		this.isRunning = true;
+		self.isRunning = true;
 	}
 	function isRunning() {
-		return this.isRunning;
+		return self.isRunning;
 	}
 
 	this.onMove = function(m) {
@@ -127,6 +134,18 @@ function GameServer(gameID, playerIDs) {
 				state: state
 			});
 			log("Player " + m.playerID + " made a move: " + m.value);
+			var gameOver = checkGameOver(state);
+			if (gameOver !== false) {
+				self.isRunning = false;
+			}
+			
+			if (state.turn === playerID_AI && self.playerIDs.length === 1 && isRunning() === true) {
+				// AI needs to make next move
+				ai.doMove(state, self.onMove);
+			}
+		}
+		else {
+			log("Player " + m.playerID + " attempted to make invalid move: " + m.value);
 		}
 	};
 
@@ -138,11 +157,6 @@ function GameServer(gameID, playerIDs) {
 	function doMove(playerID, i) {
 		state.fields[i] = getPlayerSymbol(playerID);
 		state.turn = toggleTurn(state.turn);
-
-		if (state.turn === playerID_AI && self.playerIDs.length === 1) {
-			// AI needs to make next move
-			ai.doMove(state, self.onMove);
-		}
 	}
 
 	function toggleTurn(turn) {
@@ -159,27 +173,206 @@ function GameServer(gameID, playerIDs) {
 		}
 	}
 
+	// Game over after either win or 9 moves
+	function checkGameOver(state) {
+		var winResult = getWin(state.fields);
+		if (winResult !== false) {
+			var playerID = (winResult === "X") ? state.playerSymbols.playerX : state.playerSymbols.playerO;
+			self.broadcastMessage({
+				messageType: Common.MESSAGE_TYPES.TTT_FINISH,
+				state: state,
+				winner: playerID
+			});
+			log("Player " + playerID + " has won the game.");
+		}
+		else if (getMovesDone(state.fields) === 9) {
+			self.broadcastMessage({
+				messageType: Common.MESSAGE_TYPES.TTT_FINISH,
+				state: state,
+				winner: null
+			});
+			log("Game is a draw.");
+			return true;
+		}
+		return false;
+	}
+
+	function getWin(f) {
+		var rows = [
+			[0, 1, 2],
+			[3, 4, 5],
+			[6, 7, 8],
+			[0, 3, 6],
+			[1, 4, 7],
+			[2, 5, 8],
+			[0, 4, 8],
+			[2, 4, 6]
+		];
+		for (var i=0;i<rows.length;i++) {
+			if (f[rows[i][0]] !== null && f[rows[i][0]] === f[rows[i][1]] && f[rows[i][0]] === f[rows[i][2]]) {
+				return f[rows[i][0]];
+			}
+		}
+		return false;
+	}
+
 	function log(m) {
 		console.log(gameID + " GameServer" + ": " + m);
 	}
 };
 
-function TTT_AI() {
+function getMovesDone(f) {
+	var count = 0;
+	for (var i=0;i<f.length;i++) {
+		if (f[i] !== null)
+			count++;
+	}
+	return count;
+}
 
-	var delay = 1000;
+function TTT_AI(playerSymbol, isAIFirst) {
+
+	var self = this;
+	this.playerSymbol = playerSymbol;
+	//this.isAIFirst = isAIFirst;
+
+	var delay = 500;
 
 	// Makes callback with i=0...8
 	this.doMove = function(state, callback) {
+		var nextMoveIndex = getNextMoveWinnable(state);
+		if (nextMoveIndex === -1) {
+			nextMoveIndex = getNextMoveIndex(state);
+		}
+		else {
+		}
+
 		setTimeout(function() {
-			for (var i = 0;i<state.fields.length;i++) {
-				if (state.fields[i] === null)
-					callback({
-						playerID: playerID_AI,
-						value: i
-					});
-			}
+			callback({
+				playerID: playerID_AI,
+				value: nextMoveIndex
+			});
 		}, delay);
 	};
+
+	function getNextMoveIndex(state) {
+		var movesDone = getMovesDone(state.fields);
+		var isAIFirst = (movesDone % 2 === 0);
+		if (isAIFirst) {
+			if (movesDone === 0) { 
+				// Play in middle
+				return 4;
+			}
+			if (movesDone === 2) { 
+				// Played in middle, play in a corner
+				// Check if player played in corner: if yes play on opposite side (zwickmühle)
+				var playedCorner = getPlayedCorner(state.fields);
+				if (playedCorner >= 0) {
+					return getOppositeCorner(playedCorner);
+				}
+				else {
+					return getPlayableCorner(state.fields);
+				}
+			}
+			if (movesDone > 2) {
+				// All further situations covered by isGameWinnable 
+				var playableCorner = getPlayableCorner(state.fields);
+				if (playableCorner >= 0) 
+					return playableCorner;
+				else 
+					return getRandomField(state.fields);
+			}
+
+		}
+		else {
+			// player went first
+			if (movesDone === 1) {
+				if (isMiddlePlayed(state.fields)) {
+					return getPlayableCorner(state.fields);
+				}
+				else {
+					return 4;
+				}
+			}
+			if (movesDone > 1) {
+				var playableCorner = getPlayableCorner(state.fields);
+				if (playableCorner !== -1) 
+					return playableCorner;
+				else 
+					return getRandomField(state.fields);
+			}
+		}
+	}
+
+	function getPlayedCorner(f) {
+		if (f[0] !== null) return 0;
+		if (f[2] !== null) return 2;
+		if (f[6] !== null) return 6;
+		if (f[8] !== null) return 8;
+		return -1;
+	}
+	function isMiddlePlayed(f) {
+		return (f[4] === null) ? false : true;
+	}
+	function getOppositeCorner(i) {
+		if (i === 0) return 8;
+		if (i === 2) return 6;
+		if (i === 6) return 2;
+		if (i === 8) return 0;
+		return -1;
+	}
+
+	function getPlayableCorner(f) {
+		var corners = [];
+		if (f[0] === null) corners.push(0);
+		if (f[2] === null) corners.push(2);
+		if (f[6] === null) corners.push(6);
+		if (f[8] === null) corners.push(8);
+		return corners.length > 0 ? getRandomArrayElem(corners) : -1;
+	}
+	function getRandomField(f) {
+		for (var i=0;i<f.length;i++) {
+			if (f[i] === null) return i;
+		}
+		return -1;
+	}
+
+	function getRandomArrayElem(a) {
+		return a[Math.floor(Math.random()*a.length)];
+	}
+
+	function getNextMoveWinnable(state) {
+		var f = state.fields;
+		var rows = [
+			[0, 1, 2],
+			[3, 4, 5],
+			[6, 7, 8],
+			[0, 3, 6],
+			[1, 4, 7],
+			[2, 5, 8],
+			[0, 4, 8],
+			[2, 4, 6]
+		];
+		for (var i=0;i<rows.length;i++) {
+			var index = getIndexRowWinnable(f, rows[i][0], rows[i][1], rows[i][2]);
+			if (index >= 0) {
+				return index;
+			}
+		}
+		return -1;
+	}
+	function getIndexRowWinnable(f, i1, i2, i3) {
+		if (f[i1] === null && f[i2] !== null && f[i2] === f[i3]) {
+			return i1;
+		}
+		if (f[i2] === null && f[i1] !== null && f[i1] === f[i3]) {
+			return i2;
+		}
+		if (f[i3] === null && f[i1] !== null && f[i1] === f[i2]) {
+			return i3;
+		}
+		return -1;
+	}
 
 }
 

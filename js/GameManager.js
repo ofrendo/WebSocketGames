@@ -40,6 +40,12 @@ var ConManager = function() {
 		}
 		return false;
 	};
+	this.closeAndRemoveAllConnections = function() {
+		for (var i=0;i<connections.length;i++) {
+			connections[i].ws.close();
+		}
+		connections = [];
+	};
 	this.onCloseGame = function() {
 		for (var i=0; i<connections.length;i++) {
 			connections[i].ws.close();
@@ -136,6 +142,7 @@ var Game = function(gameID, gameConfig) {
 					messageType: Common.MESSAGE_TYPES.GAME_STARTING,
 					remainingDelay: countdown
 				});
+				self.conManager.broadcastMessage(m);
 				console.log(self.gameID + " Game starting in " + countdown + "...");
 				countdown--;
 			}
@@ -143,13 +150,15 @@ var Game = function(gameID, gameConfig) {
 				m = JSON.stringify({
 					messageType: Common.MESSAGE_TYPES.GAME_STARTED
 				});
+				self.conManager.broadcastMessage(m);
 				clearInterval(timer);
 				console.log(self.gameID + " Game started.");
 
 				var gameServer = new gameServers[gameConfig.name](self.gameID, self.conManager.getPlayerIDs());
 				self.conManager.setGameServer(gameServer);
+
+				self.conManager.closeAndRemoveAllConnections();
 			}
-			self.conManager.broadcastMessage(m);
 		}, 1000);
 
 		return true;

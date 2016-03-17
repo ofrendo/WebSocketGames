@@ -40,15 +40,19 @@ function LobbyClient() {
 	}
 
 	// In active lobby
+	this.players = ko.observableArray([]);
 	this.isQuitButtonEnabled = ko.observable(true);
-	this.wsConnectionStatus = ko.observable(false);
 	this.gameConfig = ko.observable(window.gameConfig);
 	this.gameTitle = ko.computed(function() {
 		return this.gameConfig() !== undefined ?
 			this.gameConfig().title :
 			null
 	}, this);
+	this.gameStarted = ko.observable(false);
+	this.gameStartingDelay = ko.observable(Common.LOBBY_CONST.GAME_STARTING_DELAY);
+	this.wsConnectionStatus = ko.observable(false);
 	this.ws = null;
+
 
 	function onPageLoad() {
 		if (window.gameID !== undefined && window.playerID !== undefined) {
@@ -76,18 +80,28 @@ function LobbyClient() {
 			self.wsConnectionStatus(true);
 		}
 		self.ws.onmessage = function(e) {
+			console.log("Lobby WS message received: " + e.data);
 			var data = JSON.parse(e.data);
-			console.log("Received ws message:");
-			console.log(data);
 			switch (data.messageType) {
-				case "playerJoined":
-					console.log("playerJoined")
+				case Common.MESSAGE_TYPES.PLAYER_JOINED:
+					console.log("Player joined lobby.");
+					self.players(data.players);
 					break;
-				case "playerLeft":
-					console.log("playerLeft");
+				case Common.MESSAGE_TYPES.PLAYER_LEFT:
+					console.log("Player left lobby.");
+					self.players(data.players);
 					break;
-				case "message": 
-					console.log("message");
+				case Common.MESSAGE_TYPES.CHAT_MESSAGE: 
+					console.log("Chat message not implemented yet: " + data.chatMessage);
+					break;
+				case Common.MESSAGE_TYPES.GAME_STARTING:
+					console.log("Game starting in " + data.remainingDelay + "...");
+					self.gameStartingDelay(data.remainingDelay);
+					break;
+				case Common.MESSAGE_TYPES.GAME_STARTED: 
+					var host = 
+					console.log("Game has started. Redirecting...");
+					window.location.href = "/play/" + self.gameID() + "/" + self.playerID();
 					break;
 			}
 		};

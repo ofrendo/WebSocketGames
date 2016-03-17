@@ -60,6 +60,10 @@ router.head("/join/:gameID/:playerID", function(req, res, next) {
 		res.status(404).send("Game not found");
 	}
 });
+router.get("/join/:gameID", function(req, res, next) {
+	// Not implemented
+	res.status(404).send("Not implemented yet");
+});
 router.get("/join/:gameID/:playerID", function(req, res, next) {
 	var gameID = req.params.gameID;
 	var playerID = req.params.playerID;

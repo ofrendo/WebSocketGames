@@ -69,7 +69,12 @@ var TicTacToeGame = (function() {
 	function onButtonClicked(event) {
 		var button = event.target;
 		if (isValidMove(button)) {
-			sendMove(button.i);				
+			sendMove(button.i);		
+			if (navigator.vibrate) {
+				navigator.vibrate(500);
+			} else {	
+				alert("vibrate not supported!");
+			}	
 		}
 	}
 	function isValidMove(button) {
@@ -130,9 +135,6 @@ var TicTacToeGame = (function() {
 	
 	
 
-	
-	
-	
 	
 	
 	
@@ -233,6 +235,7 @@ function TicTacToeWrapper() {
 	this.ws = null;
 	this.wsConnectionStatus = ko.observable(false);
 
+	var pingHandler = new CommonFrontend.PingHandler();
 
 	function openWSConnection() {
 		var host = "ws://" + location.hostname + ":3001/ws/" + self.gameID() + "/game?" + 
@@ -243,14 +246,22 @@ function TicTacToeWrapper() {
 		self.ws.onopen = function(e) {
 			console.log("Game WS connection opened.");
 			self.wsConnectionStatus(true);
+			pingHandler.start(self.ws);
 		};
 		self.ws.onclose = function(e) {
 			console.log("Game WS connection closed.");
 			self.wsConnectionStatus(false);
+			pingHandler.stop();
 		};
 		self.ws.onmessage = function(e) {
-			console.log("Message received: " + e.data); //Should contain game state
-			TicTacToeGame.onWSMessage(JSON.parse(e.data));
+			var m = JSON.parse(e.data);
+			if (m.messageType === Common.MESSAGE_TYPES.PONG) {
+				pingHandler.onPong();
+			}
+			else {
+				console.log("Message received: " + e.data); //Should contain game state
+				TicTacToeGame.onWSMessage(m);
+			}
 		};
 
 
@@ -269,7 +280,6 @@ function TicTacToeWrapper() {
 
 }
 
-window.fpsMeter = new FPSMeter(document.getElementById("divFPSMeter"), { graph: 1 });
 TicTacToeGame.run();
 
 var ticTacToeWrapper = new TicTacToeWrapper();

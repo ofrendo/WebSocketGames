@@ -12,6 +12,7 @@
 	exports.MESSAGE_TYPES = {
 		// Common
 		PING: "ping",
+		PONG: "pong",
 
 		// Lobby messages
 		PLAYER_JOINED: "playerJoined",
@@ -27,7 +28,8 @@
 		// TicTacToe
 		TTT_INIT: "ttt_init",
 		TTT_STATE: "ttt_state",
-		TTT_MOVE: "ttt_move"
+		TTT_MOVE: "ttt_move",
+		TTT_FINISH: "ttt_finish"
 
 	};
 

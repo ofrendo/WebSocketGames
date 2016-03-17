@@ -130,6 +130,11 @@ var WSManager = (function() {
 	    	//console.log(message);
 	    	var m = JSON.parse(message);
 	    	switch(m.messageType) {
+	    		case Common.MESSAGE_TYPES.PING:
+	    			ws.send(JSON.stringify({
+	    				messageType: Common.MESSAGE_TYPES.PONG
+	    			}));
+	    			break;
 	    		case Common.MESSAGE_TYPES.TTT_MOVE: 
 	    			game.conManager.getGameServer().onMove(m);
 	    			break;

@@ -37,6 +37,9 @@ html
 			h1 Your player ID is: #{playerID}
 			h3 WS connection status: 
 				span(data-bind="text: wsConnectionStatus()")
+			h3 Players connected:
+			ul(class="ulCreateList list-group col-sm-4", data-bind="foreach: players")
+				li(class="list-group-item", data-bind="text: playerID")
 
 		script(src="/join/join.js")
 
