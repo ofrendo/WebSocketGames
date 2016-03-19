@@ -185,7 +185,7 @@ var GameManager = (function() {
 	// Return a gameID
 	function createGame(gameName) {
 		console.log("============== Creating new " + gameName + " game... ==============");
-		var gameConfig = findGameConfig(gameName);
+		var gameConfig = getGameConfig(gameName);
 		// If no gameConfig found return null
 		if (gameConfig === null) {
 			console.log("No gameConfig with name=" + gameName + " found");
@@ -230,7 +230,7 @@ var GameManager = (function() {
 	}
 
 	// Find gameConfig belonging to gameName
-	function findGameConfig(gameName) {
+	function getGameConfig(gameName) {
 		for (var i=0; i<module.config.length;i++) {
 			if (module.config[i].name === gameName)
 				return module.config[i];
@@ -275,7 +275,11 @@ var GameManager = (function() {
 	}
 
 	var module = {};
+	// Config
 	module.config = loadConfigFile();
+	module.getGameConfig = getGameConfig;
+
+	// Lobby/game
 	module.createGame = createGame;
 	module.createTestGame = createTestGame;
 	module.createTestGameStarted = createTestGameStarted;

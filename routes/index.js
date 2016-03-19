@@ -164,4 +164,17 @@ router.get("/play/:gameID/:playerID", function(req, res, next) {
 });
 
 
+// Testing
+router.get("/test/bomberman/game", function(req, res, next) {
+	var gameConfig = GameManager.getGameConfig("bomberman");
+	var args = {
+		gameID: "TEST", 
+		playerID: "TestPlayerID",
+		gameConfig: gameConfig,
+		gameConfigString: JSON.stringify(gameConfig)
+	};
+	console.log(args);
+	res.render("games/bomberman/view_game/test", args);
+});
+
 module.exports = router;
