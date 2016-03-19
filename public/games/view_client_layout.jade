@@ -14,12 +14,16 @@ html
 	body
 		div(id="coolMetrics")
 			div(id="divFPSMeter")
-			div(id="divPingMeter")
-				span(class="spanPingText" id="spanPingTitle") Ping: 
+			div(class="ownMetric", id="divPingMeter")
+				span(class="spanPingText spanPingTitle") Ping: 
 				span(class="spanPingText" id="spanPing") -1
 				span(class="spanPingText") ms
+			div(class="ownMetric", id="divNetworkTraffic")
+				span(class="spanPingText spanPingTitle" id="spanNetworkTraffic") -1 bps
 		script.
 			window.fpsMeter = new FPSMeter(document.getElementById("divFPSMeter"), { graph: 1 });
+			window.pingHandler = new CommonFrontend.PingHandler();
+			window.networkTrafficHandler = new CommonFrontend.NetworkTrafficHandler();
 			window.gameConfig = JSON.parse('!{gameConfigString}');
 			window.gameID = "#{gameID}";
 			window.playerID = "#{playerID}";

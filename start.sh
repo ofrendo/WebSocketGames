@@ -1,0 +1,1 @@
+NODE_ENV=DEVELOPMENT node bin/www

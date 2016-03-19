@@ -235,8 +235,6 @@ function TicTacToeWrapper() {
 	this.ws = null;
 	this.wsConnectionStatus = ko.observable(false);
 
-	var pingHandler = new CommonFrontend.PingHandler();
-
 	function openWSConnection() {
 		var host = "ws://" + location.hostname + ":3001/ws/" + self.gameID() + "/game?" + 
 					Common.PARAM_NAME_CONNECTION_TYPES + "=" + Common.CONNECTION_TYPES.PLAYER + "&" +

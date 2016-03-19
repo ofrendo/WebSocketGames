@@ -30,8 +30,42 @@ var CommonFrontend = (function() {
 
 	}
 
+	function NetworkTrafficHandler() {
+		var self = this;
+
+		var elemSend = document.getElementById("spanNetworkTraffic");
+		var currentSecondTrafficSend = 0;
+		// Start network size count
+		setInterval(function() {
+			elemSend.innerText = formatTraffic(currentSecondTrafficSend);
+			currentSecondTrafficSend = 0;
+		}, 1000);
+
+
+		this.addCurrentTrafficSend = function(amount) {
+			currentSecondTrafficSend += amount;	
+		}
+
+		// in bps
+		function formatTraffic(traffic) {
+			var unit = "kbps";
+			traffic /= 1024; // kbps
+			if (traffic > 1024) {
+				traffic /= 1024; // mbps
+				unit = "mbps";
+			}
+			if (traffic > 1024) {
+				traffic /= 1024; // gbps
+				unit = "gbps";
+			}
+			traffic = traffic.toFixed(3);
+			return traffic + " " + unit;
+		}
+	}
+
 	module = {};
 	module.PingHandler = PingHandler;
+	module.NetworkTrafficHandler = NetworkTrafficHandler;
 
 	return module;
 })();

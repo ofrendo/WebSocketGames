@@ -56,7 +56,6 @@ function InputHandler() {
 
 	function onKeyUp(event) {
 		var keyCode = event.keyCode;
-
 		switch (keyCode) {
 			case 87: //w
 				self.keyW = false;
@@ -75,58 +74,58 @@ function InputHandler() {
 }
 
 // This class simulates messages coming in from the server (so simulates a server) and will send them to the network handler
-// we can simulate bad conditions in inputsender and see how networkhandler handles them!
 // First we naively send snapshot of game data
 // ideas for compression:
 // if position/states dont change send isChanged -1
 // use gameStateServer
-function InputSender(inputHandler, networkHandler, mode) {
+// Network listener can be a simulation, or the websocket handler
+function InputSender(inputHandler, networkListener) {
 
 	var self = this;
-
+	var frameNumber = 0;
 	var p = gameStateServer.getPlayers()[0];
 
-	if (mode === 0 || mode === undefined) {
-		// Regular smooth sender, no delay
-		var fps = 60;
-		var m = 60 / fps; //multiplier
-		// Only setmoving to false if all other keys are also false
-		setInterval(function() {
-			if (inputHandler.keyW) {
-				p.setMoving(true);
-				p.setOrientation(CONST.PLAYER_ORIENTATION.BACK);
-				p.move(0, m*-1);
-			}
-			if (inputHandler.keyA) {
-				p.setMoving(true);
-				p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_LEFT);
-				p.move(m*-1, 0);
-			}
-			if (inputHandler.keyS) {
-				p.setMoving(true);
-				p.setOrientation(CONST.PLAYER_ORIENTATION.FRONT);
-				p.move(0, m*1);
-			}
-			if (inputHandler.keyD) {
-				p.setMoving(true);
-				p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_RIGHT);
-				p.move(m*1, 0);
-			}
-			if (!inputHandler.keyW && !inputHandler.keyA && !inputHandler.keyS && !inputHandler.keyD) {
-				// Stop moving
-				p.setMoving(false);
-			}
+	// Regular smooth sender
+	var fps = 15; // this is how many frames are sent, not how many frames are rendered per second
+	var m = 4*60 / fps; //multiplier
+	var interval = Math.round(1/fps * 1000);
+	// Only setmoving to false if all other keys are also false
+	setInterval(function() {
+		if (inputHandler.keyW) {
+			p.setMoving(true);
+			p.setOrientation(CONST.PLAYER_ORIENTATION.BACK);
+			p.move(0, m*-1);
+		}
+		if (inputHandler.keyA) {
+			p.setMoving(true);
+			p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_LEFT);
+			p.move(m*-1, 0);
+		}
+		if (inputHandler.keyS) {
+			p.setMoving(true);
+			p.setOrientation(CONST.PLAYER_ORIENTATION.FRONT);
+			p.move(0, m*1);
+		}
+		if (inputHandler.keyD) {
+			p.setMoving(true);
+			p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_RIGHT);
+			p.move(m*1, 0);
+		}
+		if (!inputHandler.keyW && !inputHandler.keyA && !inputHandler.keyS && !inputHandler.keyD) {
+			// Stop moving
+			p.setMoving(false);
+		}
+		frameNumber = (frameNumber + 1) % 10000;
+		sendFrame(gameStateServer, frameNumber);
+	}, interval);
 
-			sendFrame(gameStateServer);
-		}, 1/fps * 1000);
+	console.log("InputSender: Init with fps=" + fps);
 
-	}
+	function sendFrame(gameState, frameNumber) {
+		var networkFrame = buildNetworkFrame(gameState, frameNumber);
 
-	function sendFrame(gameState) {
-		var networkFrame = buildNetworkFrame(gameState);
-
-		// Send this to networkhandler
-		networkHandler.receiveFrame(networkFrame);
+		// Send this to network
+		networkListener.sendFrame(networkFrame);
 	}
 
 }
@@ -136,7 +135,7 @@ function InputSender(inputHandler, networkHandler, mode) {
 // x, y, orientation, moving per player: what can be x/y though? different resolutions on different machines
 // 
 // 
-function buildNetworkFrame(gameState) {
+function buildNetworkFrame(gameState, frameNumber) {
 	var result = [];
 	forEach(gameState.getPlayers(), function(p) {
 		result.push(p.x);
@@ -144,134 +143,163 @@ function buildNetworkFrame(gameState) {
 		result.push(p.orientation);
 		result.push(p.moving);
 	});
+	result.push(frameNumber);
+	//result.push("asldkjaslkdjaslkdjaslkjdalsjdlaskjdlkasjklda");
 	// do stuff like rounding numbers
-	return result;
+	return JSON.stringify(result);
 }
 
-// This reconstructs a nice state change json object from the array we built above
-/*function deconstructNetworkFrame(networkFrame, gameState) {
-	var networkFrame = {};
-	networkFrame.players = [];
-	var counter = 0;
-	for (counter=0;counter<gameState.getPlayers().length;counter=counter+4) {
-		networkFrame.players.push({
-			x: networkFrame[counter],
-			y: networkFrame[counter+1],
-			orientation: networkFrame[counter+2],
-			moving: networkFrame[counter+3]
-		});
+// Simulates network sending: can simulate packet loss, latency here
+// Networklistener is something that can receive frames
+// @param args
+// latency: time to wait before package will be sent in ms
+// packageLoss: chance of packages being lost [0, 1]
+function NetworkSimulation(networkListeners, args) {
+
+	var self = this;
+
+	this.sendFrame = function(networkFrame) {
+		if (Math.random() < args.packageLoss) {
+			// Oops, package lost. not sending
+			return;
+		}
+
+		// No latency, no packet loss
+		forEach(networkListeners, function(listener) {
+			networkTrafficHandler.addCurrentTrafficSend(networkFrame.length * 2);	
+
+			listener.receiveFrame(networkFrame);
+		})
 	}
-	return networkFrame;
-}*/
+
+}
 
 // This class implements something to make the game go smoothly if events do not come in every 1/60th of a second
 // Need a playout delay buffer to handle if things come in irregularily
-// Should really make two canvases to compare the differences of different strategies later on
-function NetworkHandler(playerGameState) {
+// @param args: 
+// useInterpolation use linear interpolation together with a playout buffer
+// playoutDelay: how big of a delay before frames are played out? 
+function NetworkHandler(playerGameState, args) {
+
 
 	// ms. playout delay of 0 should lead to instant playout
-	// even 1 is better so we have constant playout
-	var playoutDelay = 0; 
-	var buffer = [];
+	// this needs to be greater than so at least one package is always in buffer
+	// Greater values of this can deal better with package loss, but only together with linear interpolation. otherwise just induced lag
+	var playoutBuffer = {};
+	var frameNumber = 0;
+	var lastFramePlayed = null;
 
 	function receiveFrame(networkFrame) {
 		//var newNetworkFrame = deconstructNetworkFrame(networkFrame);
-		if (playoutDelay === 0) {
+		networkFrame = JSON.parse(networkFrame);
+
+		frameNumber = networkFrame.pop();
+		if (args.playoutDelay === 0) {
 			// Process new network frame immediately
 			playoutFrame(networkFrame);
+		}
+		else {
+
+			/*if (frameNumber === 1) {
+				firstFrameTime = Date.now();
+			}*/
+			// Add input to it indexed by frame - which frame? assuming server frame
+			playoutBuffer[frameNumber] = networkFrame;
+			playoutBuffer[frameNumber].receivedTime = Date.now();
+			playoutBuffer[frameNumber].frameNumber = frameNumber;
+		}
+	}
+
+	// Called when browser does one frame
+	// Playout all applicable frames here
+	function onBrowserAnimationFrame() {
+		var currentTime = Date.now();
+
+		// Playout all frames where timeDiff > playoutDelay?
+		//var playoutCount = 0;
+
+		// Will cycle from oldest to newest?
+		//console.log("cycle start: " + Object.keys(playoutBuffer));
+		for (var frameNumber in playoutBuffer) {
+			var timeDiff = currentTime - playoutBuffer[frameNumber].receivedTime;
+			if (timeDiff > args.playoutDelay) {
+				//playoutCount++;
+				//if (playoutCount > 1) console.log("MORE THAN 1 FRAME AT THE SAME TIME");
+				playoutFrame(playoutBuffer[frameNumber]);
+				lastFramePlayed = playoutBuffer[frameNumber];
+				delete playoutBuffer[frameNumber]; // lets hope no memory leaks lol
+				return; //done
+			}
+			else {
+				//interpolate here? from last frame played to oldest frame in buffer
+				if (lastFramePlayed !== null && args.useInterpolation === true) {
+					//console.log("Interpolating to frame " + frameNumber);
+					var interpolatedNetworkFrame = interpolateFrames(lastFramePlayed, playoutBuffer[frameNumber]);
+					playoutFrame(interpolatedNetworkFrame);
+				}
+				return; //done, dont interpolate another frame
+			}
 		}
 	}
 
 	function playoutFrame(networkFrame) {
+		//console.log(networkFrame);
 		forEach(playerGameState.getPlayers(), function(p, i) {
 			p.setPosition(networkFrame[i*4 +0], networkFrame[i*4 +1]);
 			p.setOrientation(networkFrame[i*4 +2]);
 			p.setMoving(networkFrame[i*4 +3]);
 		});
+
+	}
+
+	function interpolateFrames(f1, f2) {
+		// Assuming f2 is after f1
+		var currentTime = Date.now();
+		var result = [];
+		// how far along are we on vector from f1 to f2? [0,1]
+		// ==> 
+		var lambda = (currentTime - f1.receivedTime - args.playoutDelay) / (f2.receivedTime - f1.receivedTime);
+		result.fFrom = f1.frameNumber;
+		result.fTo = f2.frameNumber;
+		result.lambda = lambda;
+		forEach(playerGameState.getPlayers(), function(p, i) {
+			var dx = Math.round((f2[i*4 +0] - f1[i*4 +0]) * lambda);
+			var dy = Math.round((f2[i*4 +1] - f1[i*4 +1]) * lambda);
+
+			result.push(f1[i*4 +0] + dx); // x
+			result.push(f1[i*4 +1] + dy); // y
+			result.push(p.orientation); // dont interpolate orientation
+			result.push(p.moving); // dont interpolate moving
+		});
+		return result;
 	}
 
 	this.receiveFrame = receiveFrame;
+	this.onBrowserAnimationFrame = onBrowserAnimationFrame;
 }
 
-// This is the PRIMARY model
-function GameState() {
-	
-	var self = this;
-	var players = [];
 
-	this.addPlayer = function(player) {
-		players.push(player);
-	};
-	this.getPlayers = function() {
-		return players;
-	};
-
-}
-
-// This is the model: should NOT know anything about view
-function Player() {
-	var self = this;
-
-	// States
-	this.orientation = CONST.PLAYER_ORIENTATION.FRONT;
-	this.orientationChanged = true; // Set to true initially so texture is drawn
-	this.orientationOld = null; // Use to remove texture of old orientation
-	this.moving = false; // This is only used for animation, NOT for calculating position
-	this.movingChanged = false;
-
-	this.x = 100;
-	this.y = 100;
-
-	// External functions
-	this.setPosition = function(x, y) {
-		this.x = x;
-		this.y = y;
-	};
-	this.move = function(dX, dY) {
-		this.x += dX;
-		this.y += dY;
-	}
-	this.getPositionX = function() {
-		return this.x; //self.textures[self.orientation].x;
-	};
-	this.getPositionY = function() {
-		return this.y; //self.textures[self.orientation].y;
-	}
-	this.setMoving = function(moving) {
-		if (self.moving !== moving) {
-			self.moving = moving;
-			self.movingChanged = true;
-		}
-	};
-	this.setOrientation = function(orientation) {
-		if (self.orientation !== orientation) {
-			this.orientationOld = self.orientation; // Set old so old texture can be removed
-			self.orientation = orientation;
-			self.orientationChanged = true;
-		}
-	};
-
-
-}
-
-function BombermanTest() {
+function BombermanTest(rendererArgs) {
 	var self = this;
 	var spritePath = "/games/bomberman/res/Bombing_Chap_Sprite_Set/gen/bombermanAll.json";
-	this.loader = PIXI.loader.add("bomberman", spritePath);
+	this.loader = PIXI.loader.add("bomberman" + rendererArgs.viewI, spritePath);
 	this.stage = new PIXI.Container();
 	this.stage.interactive = true;
-	this.renderer = generateRenderer();
+	this.renderer = generateRenderer(rendererArgs);
 
 	// Only access to game state model
 	this.gameState = null;
+	this.isRunning = false;
 
 	// Each player has his own 4 textures assigned to it
 	this.playerTextures = []; 
 
+	this.onBrowserAnimationFrame = null;
 	this.onInitCallback = null;
 	
-	this.init = function(initGameState, onInitCallback) { // Pass in something like players starting in xy corners
+	this.init = function(initGameState, onBrowserAnimationFrame, onInitCallback) { // Pass in something like players starting in xy corners
 		log("Init...");
+		self.onBrowserAnimationFrame = onBrowserAnimationFrame;
 		self.onInitCallback = onInitCallback;
 		self.loader.load(onAssetsLoaded);
 
@@ -285,7 +313,7 @@ function BombermanTest() {
 			self.playerTextures[i] = initializePlayerTextures();
 		});
 
-		if (self.onInitCallback !== null) {
+		if (self.onInitCallback !== null && self.onInitCallback !== undefined) {
 			self.onInitCallback(true);
 		}
 
@@ -294,13 +322,19 @@ function BombermanTest() {
 
 	function run() {
 		log("Running...");
+		self.isRunning = true;
 
 		animate();
 	};
 
 	function processFrame() {
+		// call onBrowserAnimationFrame for playout delay buffer
+		if (self.onBrowserAnimationFrame !== null) {
+			self.onBrowserAnimationFrame();
+		}
+
 		// Need to process all things that have changed, so delta to before
-		// This does NOT mean position, which should be handled internally
+		// This does NOT mean position, which should be handled internally by pixijs
 		forEach(self.gameState.getPlayers(), function(p, i) {
 
 			// Update positions of all player textures
@@ -339,6 +373,8 @@ function BombermanTest() {
 			}
 		});
 	}
+
+
 	function forEach(a, callback) {
 		for (var i=0;i<a.length;i++) {
 			callback(a[i], i);
@@ -369,30 +405,18 @@ function BombermanTest() {
 	}
 
 
-	function generateRenderer() {
-		var w = $(window).width();
-		var wUsed = 0;
-		var mLeft = 0;
-		var h = $(window).height();
-		var hUsed = 0;
-		var mTop = 0;
-		if (w < h) {
-			// Set margin top
-			mTop = (h-w)/2;
-			h = w;
-		}
-		else {
-			// Set margin left
-			mLeft = (w-h)/2;
-			w = h;
-		}
-		var renderer = PIXI.autoDetectRenderer(w, h);
+	// w, h, mLeft, mTop
+	function generateRenderer(rendererArgs) {
+		log("Init: Rendering ");
+		console.log(rendererArgs);
+		var renderer = new PIXI.WebGLRenderer(rendererArgs.w, rendererArgs.h);
 		var elem = renderer.view;
-		elem.style.marginTop = mTop + "px";
-		elem.style.marginLeft = mLeft + "px";
+		elem.style.marginTop = rendererArgs.mTop + "px";
+		elem.style.marginLeft = rendererArgs.mLeft + "px";
 		document.body.appendChild(elem);
-		self.w = w;
-		self.h = h;
+		console.log(elem);
+		self.w = rendererArgs.w;
+		self.h = rendererArgs.h;
 		return renderer;
 	}
 
@@ -405,9 +429,11 @@ function BombermanTest() {
 	}
 
 	function animate() {
-		self.renderer.render(self.stage);
-		processFrame();
-		fpsMeter.tick();
+		if (self.isRunning === true) {
+			self.renderer.render(self.stage);
+			processFrame();
+		}
+		
 		requestAnimationFrame(animate.bind(self));
 	}	
 
@@ -415,30 +441,98 @@ function BombermanTest() {
 		console.log("BombermanTest: " + m);
 	}
 }
+	
 
-// Create separate models to simulate networking
+// Create separate models to ulate networking
 // These MUST be the same at the start
 // Server side model
 var gameStateServer = new GameState();
-var p1Server = new Player();
+var p1Server = new GameState.Player();
 gameStateServer.addPlayer(p1Server);
 
-// Client side model
+// Client side models
 var gameStateView1 = new GameState();
-var p1View1 = new Player();
+var p1View1 = new GameState.Player();
 gameStateView1.addPlayer(p1View1);
 
+// CLient side models of right view
+var gameStateView2 = new GameState();
+var p1View2 = new GameState.Player();
+gameStateView2.addPlayer(p1View2);
 
 
-
-var bombermanTest1 = new BombermanTest();
-bombermanTest1.init(gameStateView1, function(status) {
-	var networkHandler = new NetworkHandler(gameStateView1);
-
-	// Simulate sender
-	var inputHandler = new InputHandler();	
-	var inputSender = new InputSender(inputHandler, networkHandler);
-	inputHandler.start();
+// Receives frames and changes the model: Sets the observer
+var networkHandler1 = new NetworkHandler(gameStateView1, {
+	playoutDelay: 0,
+	useInterpolation: false
 });
+var networkHandler2 = new NetworkHandler(gameStateView2, {
+	playoutDelay: 100,
+	useInterpolation: true
+}); // Use this for different options and tests
 
+// Server side stuff simulation
+var networkSimulation = new NetworkSimulation([networkHandler1, networkHandler2], {
+	latency: 0,
+	packageLoss: 0.05
+});
+var inputHandler = new InputHandler();	
+var inputSender = new InputSender(inputHandler, networkSimulation);
+
+
+
+var bombermanTest1 = new BombermanTest(getRendererArgs(1));
+bombermanTest1.init(
+	gameStateView1, 
+	function onBrowserAnimationCallFrame() {
+		fpsMeter.tick();
+		networkHandler1.onBrowserAnimationFrame(arguments[0]);
+	},
+	function(status) {
+		inputHandler.start();
+	}
+);
+
+
+var bombermanTest2 = new BombermanTest(getRendererArgs(2));
+bombermanTest2.init(
+	gameStateView2, 
+	networkHandler2.onBrowserAnimationFrame
+);
+
+
+
+// Made for two screens atm
+function getRendererArgs(i) {
+	var w = $(window).width();
+	var h = $(window).height();
+	var p = 5; // Padding of each renderer to middle
+
+	// Assuming w > h, so two screens next to each other
+	var wR = h; //rendererWidth
+	var hR = h;
+
+	var mLeft = 0;
+	var mTop = 0;
+
+	if (i === 1) {
+		mLeft = w/2 - p - wR;
+	}
+	else {
+		mLeft = Math.round(w/2 + p);
+	}
+	
+	/*if (w < h) {
+		// Set margin top
+		mTop = (h-w)/2;
+		h = w;
+	}
+	else {
+		// Set margin left
+		mLeft = (w-h)/2;
+		w = h;
+	}*/
+
+	return {w: wR, h: hR, mLeft: mLeft, mTop: mTop, viewI: i};
+}
 
