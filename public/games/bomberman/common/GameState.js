@@ -1,4 +1,22 @@
+
+
+
 (function(exports){
+	var CONST = {
+		PLAYER_ORIENTATION: {
+			FRONT: 0, 
+			SIDE_LEFT: 1, //Looking left
+			SIDE_RIGHT: 2, //Looking right
+			BACK: 3,
+		},
+		PLAYER_ORIENTATION_PATH: {
+			// Texture paths
+			FRONT: "Bomberman/Front/Bman_F_f0",
+			SIDE_LEFT: "Bomberman/Side/Bman_F_f0",
+			SIDE_RIGHT: "Bomberman/Side/Bman_F_f0",
+			BACK: "Bomberman/Back/Bman_B_f0"
+		}
+	}
 
 	// This is the PRIMARY model
 	function GameState() {
@@ -14,8 +32,6 @@
 		};
 
 	}
-
-	GameState.Player = Player;
 
 	// This is the model: should NOT know anything about view
 	function Player() {
@@ -62,6 +78,9 @@
 
 
 	}
+
+	GameState.CONST = CONST;
+	GameState.Player = Player;
 
 	exports.GameState = GameState;
 

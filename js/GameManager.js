@@ -104,7 +104,7 @@ var ConManager = function() {
 	};
 	this.setGameServer = function(gameServer) {
 		this.gameServer = gameServer;
-		this.gameServer.broadcastMessage = onGameServerBroadcast;
+		this.gameServer.setOnGameServerBroadcast(onGameServerBroadcast);
 	};
 
 	function onGameServerBroadcast(m) {
@@ -152,17 +152,25 @@ var Game = function(gameID, gameConfig) {
 				});
 				self.conManager.broadcastMessage(m);
 				clearInterval(timer);
-				console.log(self.gameID + " Game started.");
 
-				var gameServer = new gameServers[gameConfig.name](self.gameID, self.conManager.getPlayerIDs());
-				self.conManager.setGameServer(gameServer);
-
-				self.conManager.closeAndRemoveAllConnections();
+				startServer();
 			}
 		}, 1000);
 
 		return true;
 	};
+
+	function startServer() {
+		console.log(self.gameID + " Game started.");
+		var GameServerClass = gameServers[gameConfig.name];
+		var gameServer = new GameServerClass(
+			self.gameID, 
+			self.conManager.getPlayerIDs(),
+			gameConfig
+		);
+		self.conManager.setGameServer(gameServer);
+		self.conManager.closeAndRemoveAllConnections();
+	}
 }
 
 var GameManager = (function() {
@@ -175,6 +183,8 @@ var GameManager = (function() {
 		contents = JSON.parse(contents);
 		for (var i=0;i<contents.length;i++) {
 			var serverPath = "../public/games/" + contents[i].path + "/game/GameServer.js";
+			// loaded server e.g. gameServers["bomberman"] = require("../public/games/bomberman/game/GameServer.js")
+			// need to return classes
 			gameServers[contents[i].name] = require(serverPath);
 		}
 		console.log("Loaded " + contents.length + " games.");
@@ -257,13 +267,13 @@ var GameManager = (function() {
 		}
 	}
 
-	function createTestGame(gameID) {
-		var gameConfig = module.config[0]; 
+	function createTestGame(configIndex, gameID) {
+		var gameConfig = module.config[configIndex]; 
 		var newGame = new Game(gameID, gameConfig);
 		games[gameID] = newGame;
 	}
-	function createTestGameStarted(gameID) {
-		var gameConfig = module.config[0];
+	function createTestGameStarted(configIndex, gameID) {
+		var gameConfig = module.config[configIndex];
 		var newGame = new Game(gameID, gameConfig);
 		games[gameID] = newGame;
 		newGame.start(1);
@@ -292,7 +302,8 @@ var GameManager = (function() {
 	return module;
 })();
 
-GameManager.createTestGame("0000");
-GameManager.createTestGameStarted("0001");
+GameManager.createTestGame(0, "0000");
+GameManager.createTestGameStarted(0, "0001");
+GameManager.createTestGameStarted(1, "0002");
 
 module.exports = GameManager;

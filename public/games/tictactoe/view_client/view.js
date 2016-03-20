@@ -227,58 +227,7 @@ var TicTacToeGame = (function() {
 	
 })();
 
-function TicTacToeWrapper() {
-	var self = this;
-
-	this.gameID = ko.observable(window.gameID);
-	this.playerID = ko.observable(window.playerID);
-	this.ws = null;
-	this.wsConnectionStatus = ko.observable(false);
-
-	function openWSConnection() {
-		var host = "ws://" + location.hostname + ":3001/ws/" + self.gameID() + "/game?" + 
-					Common.PARAM_NAME_CONNECTION_TYPES + "=" + Common.CONNECTION_TYPES.PLAYER + "&" +
-					Common.PARAM_NAME_PLAYER_ID + "=" + self.playerID();
-
-		self.ws = new WebSocket(host);
-		self.ws.onopen = function(e) {
-			console.log("Game WS connection opened.");
-			self.wsConnectionStatus(true);
-			pingHandler.start(self.ws);
-		};
-		self.ws.onclose = function(e) {
-			console.log("Game WS connection closed.");
-			self.wsConnectionStatus(false);
-			pingHandler.stop();
-		};
-		self.ws.onmessage = function(e) {
-			var m = JSON.parse(e.data);
-			if (m.messageType === Common.MESSAGE_TYPES.PONG) {
-				pingHandler.onPong();
-			}
-			else {
-				console.log("Message received: " + e.data); //Should contain game state
-				TicTacToeGame.onWSMessage(m);
-			}
-		};
-
-
-	}
-
-	this.sendWSMessage = function(m) {
-		console.log("Sending ws message: " + m);
-		self.ws.send(m);
-	}
-
-
-	function onPageLoad() {
-		openWSConnection();
-	}
-	onPageLoad();
-
-}
-
 TicTacToeGame.run();
 
-var ticTacToeWrapper = new TicTacToeWrapper();
+var ticTacToeWrapper = new CommonFrontend.ConnectionWrapper();
 ko.applyBindings(ticTacToeWrapper);

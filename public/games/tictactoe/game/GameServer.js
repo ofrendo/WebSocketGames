@@ -1,64 +1,67 @@
+"use strict";
+
 var Common = require("../../../common/common");
+var CommonBackend = require("../../../common/commonBackend");
 var playerID_AI = "_AI_";
 
 // TicTacToe game
-function GameServer(gameID, playerIDs) {
-	console.log("============== Starting GameServer for TicTacToe ==============");
-	var self = this;
+class GameServerTicTacToe extends CommonBackend.GameServer {
 
-	this.game = null;
-	this.playerIDs = playerIDs;
-	if (this.playerIDs.length === 0) this.playerIDs = ["DefaultPlayerID"];
-	log("Allowed players: " + this.playerIDs);
-	this.connectedPlayerIDs = [];
-	this.broadcastMessage = function() { log("broadcastMessage not set") };
-	this.isRunning = false;
+	constructor(gameID, playerIDs, gameConfig) {
+		super(gameID, playerIDs, gameConfig);
+		
+		// Fields is an array of 9 strings "X" "O" or null
+		this.state = {};
+		this.state.playerSymbols = {};
+		this.state.fields = [];
+		this.state.turn = null; // String representing whose turn it is. playerID for 2 player game, playerID or "_AI_" for 1 player vs AI game
+		this.ai = null;
 
-	// Fields is an array of 9 strings (playerIDs)
-	var state = {};
-	state.playerSymbols = {};
-	state.fields = [];
-	state.turn = null; // String representing whose turn it is. playerID for 2 player game, playerID or "_AI_" for 1 player vs AI game
-	var ai = null;
+		
+	}
 
-	function init() {
-		log("Initializing...");	
+	// Call this when all players have joined
+	init() {
+		this.log("Initializing...");	
+
 		// Init fields
-		state.fields = [];
+		this.state.fields = [];
 		for (var i=0;i<9;i++) {
-			state.fields.push(null);
+			this.state.fields.push(null);
 		}
 
-		if (self.playerIDs.length === 2) {
+		if (this.playerIDs.length === 2) {
 			// PvP
-			state.playerSymbols = getRandomPlayerSymbols(self.playerIDs[0], self.playerIDs[1]);
-			state.turn = Math.random() > 0.5 ?
-				self.playerIDs[0] :
-				self.playerIDs[1];
+			this.state.playerSymbols = getRandomPlayerSymbols(this.playerIDs[0], this.playerIDs[1]);
+			this.state.turn = Math.random() > 0.5 ?
+				this.playerIDs[0] :
+				this.playerIDs[1];
 		}
 		else {
 			// AI player is needed
-			state.playerSymbols = getRandomPlayerSymbols(self.playerIDs[0], playerID_AI);
-			var aiPlayerSymbol = state.playerSymbols.playerX === playerID_AI ? "X" : "O";
+			this.state.playerSymbols = this.getRandomPlayerSymbols(this.playerIDs[0], playerID_AI);
+			var aiPlayerSymbol = this.state.playerSymbols.playerX === playerID_AI ? "X" : "O";
 
-			state.turn = Math.random() > 0.5 ?
-				self.playerIDs[0] :
+			this.state.turn = Math.random() > 0.5 ?
+				this.playerIDs[0] :
 				playerID_AI;
 
-			var isAIFirst = (state.turn === playerID_AI);
-			ai = new TTT_AI(aiPlayerSymbol, isAIFirst);
+			var isAIFirst = (this.state.turn === playerID_AI);
+			this.ai = new TTT_AI(aiPlayerSymbol, isAIFirst);
 
-			if (state.turn === playerID_AI) {
-				ai.doMove(state, self.onMove);
+			if (this.state.turn === playerID_AI) {
+				var self = this;
+				this.ai.doMove(this.state, this.onMove.bind(self));
 			}
 		}
 		// Send init state to players
-		self.broadcastMessage({
+		this.broadcastMessage({
 			messageType: Common.MESSAGE_TYPES.TTT_INIT,
-			state: state
+			state: this.state
 		});
 	}
-	function getRandomPlayerSymbols(playerID1, playerID2) {
+
+	getRandomPlayerSymbols(playerID1, playerID2) {
 		var result = {};
 		if (Math.random() > 0.5) {
 			result.playerX = playerID1;
@@ -70,134 +73,89 @@ function GameServer(gameID, playerIDs) {
 		}
 		return result;
 	}
-	function getPlayerSymbol(playerID) {
-		if (state.playerSymbols.playerX === playerID) {
+
+	getPlayerSymbol(playerID) {
+		if (this.state.playerSymbols.playerX === playerID) {
 			return "X";
 		}
 		else {
 			return "O";
 		}
 	}
-
-	function getNotConnectedPlayers() {
-		var result = [];
-		for (var i=0;i<self.playerIDs.length;i++) {
-			var exists = false;
-			for (var j=0;j<self.connectedPlayerIDs.length;j++) {
-				if (self.connectedPlayerIDs[j] === self.playerIDs[i])
-					exists = true;
-			}
-			if (exists === false) 
-				result.push(self.playerIDs[i]);
-		}
-		return result;
+	onPlayerMessage(m) {
+		this.onMove(m);
 	}
-
-	this.onPlayerJoin = function(playerID) {
-		// Check if all players have joined
-		self.connectedPlayerIDs.push(playerID);
-		log(playerID + " has joined.");
-		var notConnectedPlayers = getNotConnectedPlayers();
-		if (notConnectedPlayers.length === 0) {
-			log("All players have joined.");
-			run();
-		}
-		else {
-			log("Waiting for people: ");
-			for (var i=0;i<notConnectedPlayers.length;i++) {
-				log(notConnectedPlayers[i]);
-			}
-		}
-	};
-
-	this.onPlayerLeave = function(playerID) {
-		// Todo: pause
-		//console.log("GameServer: " + playerID + " has left.");
-	}
-
-	function run() {
-		if (isRunning() === true) 
-			return false;
-		init();
-		log("Running game.");
-		self.isRunning = true;
-	}
-	function isRunning() {
-		return self.isRunning;
-	}
-
-	this.onMove = function(m) {
-		if (isValidMove(m.playerID, m.value)) {
-			doMove(m.playerID, m.value);
-			self.broadcastMessage({
+	onMove(m) {
+		if (this.isValidMove(m.playerID, m.value)) {
+			this.doMove(m.playerID, m.value);
+			this.broadcastMessage({
 				messageType: Common.MESSAGE_TYPES.TTT_STATE,
-				state: state
+				state: this.state
 			});
-			log("Player " + m.playerID + " made a move: " + m.value);
-			var gameOver = checkGameOver(state);
+			this.log("Player " + m.playerID + " made a move: " + m.value);
+			var gameOver = this.checkGameOver();
 			if (gameOver !== false) {
-				self.isRunning = false;
+				this.stop();
 			}
 			
-			if (state.turn === playerID_AI && self.playerIDs.length === 1 && isRunning() === true) {
+			if (this.state.turn === playerID_AI && this.playerIDs.length === 1 && this.isRunning() === true) {
 				// AI needs to make next move
-				ai.doMove(state, self.onMove);
+				this.ai.doMove(this.state, this.onMove.bind(this));
 			}
 		}
 		else {
-			log("Player " + m.playerID + " attempted to make invalid move: " + m.value);
+			this.log("Player " + m.playerID + " attempted to make invalid move: " + m.value);
 		}
 	};
 
-	function isValidMove(playerID, i) {
-		return isRunning() &&
-			state.turn === playerID &&
-			state.fields[i] === null;		   
+	isValidMove(playerID, i) {
+		return this.isRunning() &&
+			this.state.turn === playerID &&
+			this.state.fields[i] === null;		   
 	}
-	function doMove(playerID, i) {
-		state.fields[i] = getPlayerSymbol(playerID);
-		state.turn = toggleTurn(state.turn);
+	doMove(playerID, i) {
+		this.state.fields[i] = this.getPlayerSymbol(playerID);
+		this.state.turn = this.toggleTurn(this.state.turn);
 	}
-
-	function toggleTurn(turn) {
-		if (self.playerIDs.length === 2) {
+	toggleTurn(turn) {
+		if (this.playerIDs.length === 2) {
 			// pvp, other player's turn
-			return turn === self.playerIDs[0] ?
-				self.playerIDs[1] :
-				self.playerIDs[0];
+			return turn === this.playerIDs[0] ?
+				this.playerIDs[1] :
+				this.playerIDs[0];
 		} 
 		else {
 			return turn === playerID_AI ?
-				self.playerIDs[0] :
+				this.playerIDs[0] :
 				playerID_AI;
 		}
 	}
-
 	// Game over after either win or 9 moves
-	function checkGameOver(state) {
-		var winResult = getWin(state.fields);
+	checkGameOver() {
+		var winResult = this.getWin(this.state.fields);
 		if (winResult !== false) {
-			var playerID = (winResult === "X") ? state.playerSymbols.playerX : state.playerSymbols.playerO;
-			self.broadcastMessage({
+			var playerID = (winResult === "X") ? 
+				this.state.playerSymbols.playerX : 
+				this.state.playerSymbols.playerO;
+			this.broadcastMessage({
 				messageType: Common.MESSAGE_TYPES.TTT_FINISH,
-				state: state,
+				state: this.state,
 				winner: playerID
 			});
-			log("Player " + playerID + " has won the game.");
+			this.log("Player " + playerID + " has won the game.");
 		}
-		else if (getMovesDone(state.fields) === 9) {
-			self.broadcastMessage({
+		else if (getMovesDone(this.state.fields) === 9) {
+			this.broadcastMessage({
 				messageType: Common.MESSAGE_TYPES.TTT_FINISH,
-				state: state,
+				state: this.state,
 				winner: null
 			});
-			log("Game is a draw.");
+			this.log("Game is a draw.");
 			return true;
 		}
 		return false;
 	}
-
-	function getWin(f) {
+	getWin(f) {
 		var rows = [
 			[0, 1, 2],
 			[3, 4, 5],
@@ -215,11 +173,9 @@ function GameServer(gameID, playerIDs) {
 		}
 		return false;
 	}
+	
+}
 
-	function log(m) {
-		console.log(gameID + " GameServer" + ": " + m);
-	}
-};
 
 function getMovesDone(f) {
 	var count = 0;
@@ -376,6 +332,6 @@ function TTT_AI(playerSymbol, isAIFirst) {
 
 }
 
-module.exports = GameServer;
+module.exports = GameServerTicTacToe;
 
 

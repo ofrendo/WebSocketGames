@@ -19,7 +19,11 @@ html
 				span(class="spanPingText" id="spanPing") -1
 				span(class="spanPingText") ms
 			div(class="ownMetric", id="divNetworkTraffic")
-				span(class="spanPingText spanPingTitle" id="spanNetworkTraffic") -1 bps
+				span(class="spanPingText spanPingTitle") ▲ 
+				span(class="spanPingText" id="spanNetworkTrafficUp") -1 bps
+				br
+				span(class="spanPingText spanPingTitle") ▼ 
+				span(class="spanPingText" id="spanNetworkTrafficDown") -1 bps
 		script.
 			window.fpsMeter = new FPSMeter(document.getElementById("divFPSMeter"), { graph: 1 });
 			window.pingHandler = new CommonFrontend.PingHandler();

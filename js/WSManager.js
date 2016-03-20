@@ -112,8 +112,14 @@ var WSManager = (function() {
 
 	function handleGameWSPlayer(ws, game, gameID, playerID) {
 		if (!game.conManager.isValidPlayerID(playerID)) {
-			ws.close(1, "Player with playerID " + playerID + " already exists.");
+			ws.close(1008, "Player with playerID " + playerID + " already exists.");
+			return;
 		}
+		if (!game.conManager.getGameServer().isValidPlayerID(playerID)) {
+			ws.close(1008, "Player with playerID " +playerID + " not allowed.");
+			return;
+		}
+
 
 		var con = {
 			ws: ws,
@@ -128,18 +134,23 @@ var WSManager = (function() {
 		ws.on('message', function(message) {
 	    	// Redirect message to game server
 	    	//console.log(message);
-	    	var m = JSON.parse(message);
-	    	switch(m.messageType) {
-	    		case Common.MESSAGE_TYPES.PING:
-	    			ws.send(JSON.stringify({
-	    				messageType: Common.MESSAGE_TYPES.PONG
-	    			}));
-	    			break;
-	    		case Common.MESSAGE_TYPES.TTT_MOVE: 
-	    			game.conManager.getGameServer().onMove(m);
-	    			break;
+	    	if (message.startsWith("{") === false) {
+	    		game.conManager.getGameServer().onPlayerMessage(message);
 	    	}
-	    	// TODO: Could be chat message
+	    	else {
+	    		var m = JSON.parse(message);
+		    	switch(m.messageType) {
+		    		case Common.MESSAGE_TYPES.PING:
+		    			ws.send(JSON.stringify({
+		    				messageType: Common.MESSAGE_TYPES.PONG
+		    			}));
+		    			break;
+		    		default: 
+		    			game.conManager.getGameServer().onPlayerMessage(m);
+		    			break;
+		    	}
+	    	}
+
 
 		});
 		ws.on('close', function(e) {
