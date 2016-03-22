@@ -72,15 +72,21 @@ var CommonFrontend = (function() {
 	function ConnectionWrapper() {
 		var self = this;
 
+		this.wsListener = null;
 		this.gameID = ko.observable(window.gameID);
 		this.playerID = ko.observable(window.playerID);
 		this.ws = null;
 		this.wsConnectionStatus = ko.observable(false);
 
 		function openWSConnection() {
-			var host = "ws://" + location.hostname + ":3001/ws/" + self.gameID() + "/game?" + 
-						Common.PARAM_NAME_CONNECTION_TYPES + "=" + Common.CONNECTION_TYPES.PLAYER + "&" +
+			var host = "ws://" + location.hostname + ":3001/ws/" + self.gameID() + "/game?";
+			if (self.playerID() === "") {
+				host += Common.PARAM_NAME_CONNECTION_TYPES + "=" + Common.CONNECTION_TYPES.VIEWER;
+			}
+			else {
+				host += Common.PARAM_NAME_CONNECTION_TYPES + "=" + Common.CONNECTION_TYPES.PLAYER + "&" +
 						Common.PARAM_NAME_PLAYER_ID + "=" + self.playerID();
+			}
 
 			self.ws = new WebSocket(host);
 			self.ws.onopen = function(e) {
@@ -93,19 +99,25 @@ var CommonFrontend = (function() {
 				console.log(e);
 				self.wsConnectionStatus(false);
 				pingHandler.stop();
+				if (typeof self.wsListener.stopSending === "function") {
+					self.wsListener.stopSending();
+				}
 			};
 			self.ws.onmessage = function(e) {
+				networkTrafficHandler.addCurrentTrafficUp(e.data * 16);
 				var m = JSON.parse(e.data);
 				if (m.messageType === Common.MESSAGE_TYPES.PONG) {
 					pingHandler.onPong();
 				}
 				else {
 					console.log("Message received: " + e.data); //Should contain game state
-					TicTacToeGame.onWSMessage(m);
+					if (typeof self.wsListener.onWSMessage === "function") self.wsListener.onWSMessage(m);
 				}
 			};
+		}
 
-
+		this.setWSListener = function(wsListener) {
+			self.wsListener = wsListener;
 		}
 
 		this.sendWSMessage = function(m) {
@@ -124,10 +136,57 @@ var CommonFrontend = (function() {
 
 	}
 
+	// Use this for getting renderer arguments for pixijs, meaning where is the canvas placed
+	function getRendererArgs(iView, nViews) {
+		var w = $(window).width();
+		var h = $(window).height();
+
+		if (nViews === 1) {
+			var mLeft = 0;
+			var mTop = 0;
+			if (w < h) {
+				// Set margin top
+				mTop = (h-w)/2;
+				h = w;
+			}
+			else {
+				// Set margin left
+				mLeft = (w-h)/2;
+				w = h;
+			}
+			return {w: w, h: h, mLeft: mLeft, mTop: mTop, viewI: iView}; 
+		}
+		else if (nViews === 2) {
+			var p = 5; // Padding of each renderer to middle
+
+			// Assuming w > h, so two screens next to each other
+			var wR = h; //rendererWidth
+			var hR = h;
+
+			var mLeft = 0;
+			var mTop = 0;
+
+			if (iView === 1) {
+				mLeft = w/2 - p - wR;
+			}
+			else {
+				mLeft = Math.round(w/2 + p);
+			}
+
+			return {w: wR, h: hR, mLeft: mLeft, mTop: mTop, viewI: iView};
+		}
+		else {
+			return;
+		}
+
+		
+	}
+
 	module = {};
 	module.PingHandler = PingHandler;
 	module.NetworkTrafficHandler = NetworkTrafficHandler;
 	module.ConnectionWrapper = ConnectionWrapper;
+	module.getRendererArgs = getRendererArgs;
 
 	return module;
 })();

@@ -4,12 +4,45 @@
 
 	// Maybe should assign playerID
 	class PlayerInputState {
-		constructor() {
+		constructor(playerID) {
+			this.playerID = playerID;
+
 			this.keyUp = false;
 			this.keyLeft = false;
 			this.keyDown = false;
 			this.keyRight = false;
 			this.keyBomb = false;
+		}
+
+		setKeyUp(value) {
+			this.keyUp = value;
+		}
+		getKeyUp() {
+			return this.keyUp;
+		}
+		setKeyLeft(value) {
+			this.keyLeft = value;
+		}
+		getKeyLeft() {
+			return this.keyLeft;
+		}
+		setKeyDown(value) {
+			this.keyDown = value;
+		}
+		getKeyDown() {
+			return this.keyDown;
+		}
+		setKeyRight(value) {
+			this.keyRight = value;
+		}
+		getKeyRight() {
+			return this.keyRight;
+		}
+		setKeyBomb(value) {
+			this.keyBomb = value;
+		}
+		getKeyBomb() {
+			return this.keyBomb;
 		}
 
 		asNetworkFrame() {
@@ -22,7 +55,7 @@
 			return result;
 		}
 		// Changes a given playerInputState to match a given networkFrame
-		static fromNetworkFrame(playerInputState, networkFrame) {
+		static setFromNetworkFrame(playerInputState, networkFrame) {
 			networkFrame = networkFrame.split("");
 			playerInputState.keyUp = networkFrame[0] === "1";
 			playerInputState.keyLeft = networkFrame[1] === "1";

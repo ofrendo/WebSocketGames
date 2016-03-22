@@ -20,16 +20,16 @@ function InputHandler() {
 		var keyCode = event.keyCode;
 		switch (keyCode) {
 			case 87: //w
-				playerInputState.keyW = true;
+				playerInputState.setKeyUp(true);
 				break;
 			case 65: //a
-				playerInputState.keyA = true;
+				playerInputState.setKeyLeft(true);
 				break;
 			case 83: //s
-				playerInputState.keyS = true;
+				playerInputState.setKeyDown(true);
 				break;
 			case 68: //d
-				playerInputState.keyD = true;
+				playerInputState.setKeyRight(true);
 				break;
 		}
 
@@ -38,16 +38,16 @@ function InputHandler() {
 		var keyCode = event.keyCode;
 		switch (keyCode) {
 			case 87: //w
-				playerInputState.keyW = false;
+				playerInputState.setKeyUp(false);
 				break;
 			case 65: //a
-				playerInputState.keyA = false;
+				playerInputState.setKeyLeft(false);
 				break;
 			case 83: //s
-				playerInputState.keyS = false;
+				playerInputState.setKeyDown(false);
 				break;
 			case 68: //d
-				playerInputState.keyD = false;
+				playerInputState.setKeyRight(false);
 				break;
 		}
 	}
@@ -79,9 +79,9 @@ function InputSender(playerInputState, networkListener) {
 		networkTrafficHandler.addCurrentTrafficUp(playerInputState.asNetworkFrame().length * 16);
 		
 		gameStateFrameProcessor.processSnapshot.call(gameStateFrameProcessor, Date.now() - currentTime);
-		var networkFrame = gameStateFrameProcessor.buildNetworkFrame();
+		var networkFrame = gameStateFrameProcessor.getNetworkFrame();
 		sendFrame(networkFrame);
-
+		//console.log(networkFrame);
 		currentTime = Date.now();
 
 	}, interval);
@@ -114,7 +114,7 @@ function NetworkSimulation(networkListeners, args) {
 		// No latency, no packet loss
 		forEach(networkListeners, function(listener) {
 
-			networkTrafficHandler.addCurrentTrafficDown(networkFrame.length);	
+			networkTrafficHandler.addCurrentTrafficDown(networkFrame.length * 16);	
 
 			listener.receiveFrame(networkFrame);
 		})
@@ -126,19 +126,17 @@ function NetworkSimulation(networkListeners, args) {
 // Create separate models to ulate networking
 // These MUST be the same at the start
 // Server side model
-var gameStateServer = new GameState();
-var p1Server = new GameState.Player();
-gameStateServer.addPlayer(p1Server);
+var gameStateServer = GameState.buildRandomGameState(gameConfig);
 
 // Client side models
 var gameStateView1 = new GameState();
-var p1View1 = new GameState.Player();
-gameStateView1.addPlayer(p1View1);
+//var p1View1 = new GameState.Player();
+//gameStateView1.addPlayer(p1View1);
 
 // CLient side models of right view
 var gameStateView2 = new GameState();
-var p1View2 = new GameState.Player();
-gameStateView2.addPlayer(p1View2);
+//var p1View2 = new GameState.Player();
+//gameStateView2.addPlayer(p1View2);
 
 
 // Receives frames and changes the model: Sets the observer
@@ -165,7 +163,7 @@ var inputSender = new InputSender(playerInputState, networkSimulation);
 // Handles changing playerinputstate
 var inputHandler = new InputHandler();	
 
-var bombermanView1 = new BombermanView(getRendererArgs(1));
+var bombermanView1 = new BombermanView(CommonFrontend.getRendererArgs(1, 2));
 bombermanView1.init(
 	gameStateView1, 
 	function onBrowserAnimationCallFrame() {
@@ -178,7 +176,7 @@ bombermanView1.init(
 );
 
 
-var bombermanView2 = new BombermanView(getRendererArgs(2));
+var bombermanView2 = new BombermanView(CommonFrontend.getRendererArgs(2, 2));
 bombermanView2.init(
 	gameStateView2, 
 	networkHandler2.onBrowserAnimationFrame
@@ -187,36 +185,5 @@ bombermanView2.init(
 
 
 // Made for two screens atm
-function getRendererArgs(i) {
-	var w = $(window).width();
-	var h = $(window).height();
-	var p = 5; // Padding of each renderer to middle
 
-	// Assuming w > h, so two screens next to each other
-	var wR = h; //rendererWidth
-	var hR = h;
-
-	var mLeft = 0;
-	var mTop = 0;
-
-	if (i === 1) {
-		mLeft = w/2 - p - wR;
-	}
-	else {
-		mLeft = Math.round(w/2 + p);
-	}
-	
-	/*if (w < h) {
-		// Set margin top
-		mTop = (h-w)/2;
-		h = w;
-	}
-	else {
-		// Set margin left
-		mLeft = (w-h)/2;
-		w = h;
-	}*/
-
-	return {w: wR, h: hR, mLeft: mLeft, mTop: mTop, viewI: i};
-}
 

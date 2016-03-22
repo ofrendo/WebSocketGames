@@ -229,5 +229,5 @@ var TicTacToeGame = (function() {
 
 TicTacToeGame.run();
 
-var ticTacToeWrapper = new CommonFrontend.ConnectionWrapper();
+var ticTacToeWrapper = new CommonFrontend.ConnectionWrapper(TicTacToeGame);
 ko.applyBindings(ticTacToeWrapper);

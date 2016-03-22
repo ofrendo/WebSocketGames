@@ -1,7 +1,16 @@
 "use strict";
 
+var CONST = CONST;
+if (typeof require === "function") {
+	CONST = require("./GameState").GameState.CONST;
+}
+
 (function(exports) {
 
+	//var CONST = CONST;
+	//if (typeof require === "function") {
+		
+	//}
 	class GameStateFrameProcessor {
 
 		// @param gameConfig Config of the game, e.g. fps for server, speed of players etc
@@ -24,27 +33,25 @@
 			
 			// Process each player movement
 			var v = this.gameConfig.game.playerSpeed;
-			
 			forEach.call(this, this.gameState.getPlayers(), function(p, i) {
 				var playerInputState = this.playerInputStates[i];
-				
-				var ds = v * (dt/1000); // how much has the player moved since last frame
-				if (playerInputState.keyW) {
+				var ds = Math.round(v * (dt/1000)); // how much has the player moved since last frame
+				if (playerInputState.getKeyUp()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.BACK);
 					p.move(0, ds*-1);
 				}
-				if (playerInputState.keyA) {
+				if (playerInputState.getKeyLeft()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_LEFT);
 					p.move(ds*-1, 0);
 				}
-				if (playerInputState.keyS) {
+				if (playerInputState.getKeyDown()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.FRONT);
 					p.move(0, ds*1);
 				}
-				if (playerInputState.keyD) {
+				if (playerInputState.getKeyRight()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_RIGHT);
 					p.move(ds*1, 0);
@@ -63,15 +70,8 @@
 		// this what we actually send over the web
 		// x, y, orientation, moving per player: what can be x/y though? different resolutions on different machines
 		// @return String: Contructs an array as a representation of the current state to send to clients 
-		buildNetworkFrame() {
-			
-			var result = [];
-			forEach(this.gameState.getPlayers(), function(p) {
-				result.push(p.x);
-				result.push(p.y);
-				result.push(p.orientation);
-				result.push(p.moving);
-			});
+		getNetworkFrame() {
+			var result = this.gameState.buildNetworkFrame();
 			result.push(this.frameNumber);
 			//result.push("asldkjaslkdjaslkdjaslkjdalsjdlaskjdlkasjklda");
 			// do stuff like rounding numbers
@@ -83,10 +83,7 @@
 
 	exports.GameStateFrameProcessor = GameStateFrameProcessor;
 
-})(typeof exports === 'undefined' ? 
-	//this['GameState']={} : 
-	window :
-	exports);
+})(typeof exports === 'undefined' ? window : exports);
 
 function forEach(a, callback) {
 	for (var i=0;i<a.length;i++) {

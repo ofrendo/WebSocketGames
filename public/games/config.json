@@ -23,8 +23,11 @@
 			"fps": 15
 		},
 		"game": {
-			"width": 1000,
-			"height": 1000,
+			"xTiles": 21,
+			"yTiles": 17,
+			"tileSize": 50,
+			"nPlayers": 1,
+			"playerSize": 40,
 			"playerSpeed": 300
 		}
 	}

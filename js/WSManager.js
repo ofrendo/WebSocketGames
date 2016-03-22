@@ -107,7 +107,16 @@ var WSManager = (function() {
 	}
 	function handleGameWSViewer(ws, game, gameID) {
 		console.log("WSManager: Viewer for " + gameID + " joined.");
-		// TODO
+		var con = {
+			ws: ws,
+			connectionType: Common.CONNECTION_TYPES.VIEWER
+		}
+		game.conManager.addOtherConnection(con);
+
+		ws.on('close', function(e) {
+			game.conManager.removeConnection(con);
+			console.log("WSManager: Viewer for " + gameID + " left.");
+		});
 	}	
 
 	function handleGameWSPlayer(ws, game, gameID, playerID) {
@@ -115,7 +124,10 @@ var WSManager = (function() {
 			ws.close(1008, "Player with playerID " + playerID + " already exists.");
 			return;
 		}
-		if (!game.conManager.getGameServer().isValidPlayerID(playerID)) {
+		if (game.conManager.getGameServer() === null) {
+			ws.close(1008, "Game server not started yet, try refreshing.");
+		}
+		else if (!game.conManager.getGameServer().isValidPlayerID(playerID)) {
 			ws.close(1008, "Player with playerID " +playerID + " not allowed.");
 			return;
 		}
@@ -135,7 +147,7 @@ var WSManager = (function() {
 	    	// Redirect message to game server
 	    	//console.log(message);
 	    	if (message.startsWith("{") === false) {
-	    		game.conManager.getGameServer().onPlayerMessage(message);
+	    		game.conManager.getGameServer().onPlayerMessage(message, playerID);
 	    	}
 	    	else {
 	    		var m = JSON.parse(message);
@@ -146,7 +158,7 @@ var WSManager = (function() {
 		    			}));
 		    			break;
 		    		default: 
-		    			game.conManager.getGameServer().onPlayerMessage(m);
+		    			game.conManager.getGameServer().onPlayerMessage(m, playerID);
 		    			break;
 		    	}
 	    	}

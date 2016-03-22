@@ -173,7 +173,7 @@ router.get("/test/bomberman/game", function(req, res, next) {
 		gameConfig: gameConfig,
 		gameConfigString: JSON.stringify(gameConfig)
 	};
-	console.log(args);
+	//console.log(args);
 	res.render("games/bomberman/view_game/test", args);
 });
 

@@ -9,16 +9,31 @@ function NetworkHandler(playerGameState, args) {
 	// ms. playout delay of 0 should lead to instant playout
 	// this needs to be greater than so at least one package is always in buffer
 	// Greater values of this can deal better with package loss, but only together with linear interpolation. otherwise just induced lag
+	var self = this;
 	var playoutBuffer = {};
 	var frameNumber = 0;
 	var lastFramePlayed = null;
+	var isGameInitialized = playerGameState.getPlayers().length > 0;
 
 	// one networkFrame represents one snapshot
 	function receiveFrame(networkFrame) {
 		//var newNetworkFrame = deconstructNetworkFrame(networkFrame);
 		networkFrame = JSON.parse(networkFrame);
-
+		
+		if (isGameInitialized === false) {
+			GameState.buildFromNetworkFrame(playerGameState, networkFrame);
+			isGameInitialized = true;
+			if (typeof self.onGameStateInit === "function") {
+				self.onGameStateInit();
+			}
+			return;
+			//console.log(networkFrame);
+			//console.log("here: " + playerGameState.getPlayers().length + " " +  playerGameState.getEntities().length);
+		}
+		//console.log(networkFrame);
 		frameNumber = networkFrame.pop();
+		networkFrame.splice(0, 2);
+		//console.log(networkFrame);
 		if (args.playoutDelay === 0) {
 			// Process new network frame immediately
 			playoutFrame(networkFrame);
@@ -99,7 +114,11 @@ function NetworkHandler(playerGameState, args) {
 		return result;
 	}
 
+	this.setOnGameStateInit = function(callback) {
+		self.onGameStateInit = callback;
+	};
 	this.receiveFrame = receiveFrame;
+	this.onWSMessage = receiveFrame;
 	this.onBrowserAnimationFrame = onBrowserAnimationFrame;
 }
 
@@ -138,7 +157,7 @@ function BombermanView(rendererArgs) {
 			self.playerTextures[i] = initializePlayerTextures();
 		});
 
-		if (self.onInitCallback !== null && self.onInitCallback !== undefined) {
+		if (typeof self.onInitCallback === "function") {
 			self.onInitCallback(true);
 		}
 
@@ -158,6 +177,7 @@ function BombermanView(rendererArgs) {
 			self.onBrowserAnimationFrame();
 		}
 
+		//console.log(self.gameState.getEntities().length);
 		// Need to process all things that have changed, so delta to before
 		// This does NOT mean position, which should be handled internally by pixijs
 		forEach(self.gameState.getPlayers(), function(p, i) {
@@ -179,6 +199,7 @@ function BombermanView(rendererArgs) {
 				self.stage.removeChild(tOld);
 
 				// Add new orientation as child
+				//console.log(p);
 				self.stage.addChild(tNew);
 			}
 			// State: moving changed

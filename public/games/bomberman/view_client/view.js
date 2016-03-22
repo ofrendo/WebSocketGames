@@ -4,13 +4,13 @@ class InputHandler {
 		this.playerInputState = playerInputState;
 	}
 	startListening() {
-		window.addEventListener("keydown", this.onKeyDown, false);
-		window.addEventListener("keyup", this.onKeyUp, false);
+		window.addEventListener("keydown", this.onKeyDown.bind(this), false);
+		window.addEventListener("keyup", this.onKeyUp.bind(this), false);
 		console.log("InputHandler: Listening to key strokes...");
 	}
 	stopListening() {
-		window.removeEventListener("keydown", this.onKeyDown);
-		window.removeEventListener("keyup", this.onKeyUp);
+		window.removeEventListener("keydown", this.onKeyDown.bind(this));
+		window.removeEventListener("keyup", this.onKeyUp.bind(this));
 		console.log("InputHandler: Stopped listening to key strokes.");
 	};
 
@@ -18,16 +18,16 @@ class InputHandler {
 		var keyCode = event.keyCode;
 		switch (keyCode) {
 			case 87: //w
-				this.playerInputState.keyW = true;
+				this.playerInputState.setKeyUp(true);
 				break;
 			case 65: //a
-				this.playerInputState.keyA = true;
+				this.playerInputState.setKeyLeft(true);
 				break;
 			case 83: //s
-				this.playerInputState.keyS = true;
+				this.playerInputState.setKeyDown(true);
 				break;
 			case 68: //d
-				this.playerInputState.keyD = true;
+				this.playerInputState.setKeyRight(true);
 				break;
 		}
 
@@ -36,16 +36,16 @@ class InputHandler {
 		var keyCode = event.keyCode;
 		switch (keyCode) {
 			case 87: //w
-				this.playerInputState.keyW = false;
+				this.playerInputState.setKeyUp(false);
 				break;
 			case 65: //a
-				this.playerInputState.keyA = false;
+				this.playerInputState.setKeyLeft(false);
 				break;
 			case 83: //s
-				this.playerInputState.keyS = false;
+				this.playerInputState.setKeyDown(false);
 				break;
 			case 68: //d
-				this.playerInputState.keyD = false;
+				this.playerInputState.setKeyRight(false);
 				break;
 		}
 	}
@@ -69,12 +69,13 @@ class InputSender {
 	}
 
 	startSending() {
-		this.log("Starting to send.");
+		this.log("Starting to send...");
 		this.running = true;
 		this.onAnimationFrame();
 	}
 	stopSending() {	
 		// maybe send pause request
+		this.log("Stopping of input sending.");
 		this.running = false;
 	}
 	onAnimationFrame() {
@@ -83,8 +84,8 @@ class InputSender {
 			if (this.frameNumber === 0) {
 				this.sendFrame();
 			}
+			requestAnimationFrame(this.onAnimationFrame.bind(this));
 		}
-		requestAnimationFrame(this.onAnimationFrame.bind(this));
 	}
 	// Send frame of user inputs to server
 	sendFrame() {
@@ -110,6 +111,7 @@ var bombermanWrapper = new CommonFrontend.ConnectionWrapper();
 
 // Send frames to server
 var inputSender = new InputSender(playerInputState, bombermanWrapper);
+bombermanWrapper.setWSListener(inputSender);
 
 
 inputHandler.startListening();
