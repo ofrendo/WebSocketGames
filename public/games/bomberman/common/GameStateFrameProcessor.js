@@ -20,6 +20,7 @@ if (typeof require === "function") {
 		constructor(gameConfig, gameState, playerInputStates) {
 			this.gameConfig = gameConfig;
 			this.gameState = gameState;
+			//if (playerInputStates.length === 0) throw new Error("PlayerInputStates is 0!");
 			this.playerInputStates = playerInputStates;
 			this.frameNumber = 0;
 			this.frameNumberMax = 10000;
@@ -39,24 +40,32 @@ if (typeof require === "function") {
 				if (playerInputState.getKeyUp()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.BACK);
-					p.move(0, ds*-1);
+					if (this.gameState.isValidPlayerMove(p, 0, -ds)) {
+						p.move(0, ds*-1);
+					}
 				}
 				if (playerInputState.getKeyLeft()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_LEFT);
-					p.move(ds*-1, 0);
+					if (this.gameState.isValidPlayerMove(p, -ds, 0)) {
+						p.move(ds*-1, 0);
+					}
 				}
 				if (playerInputState.getKeyDown()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.FRONT);
-					p.move(0, ds*1);
+					if (this.gameState.isValidPlayerMove(p, 0, ds)) {
+						p.move(0, ds*1);
+					}
 				}
 				if (playerInputState.getKeyRight()) {
 					p.setMoving(true);
 					p.setOrientation(CONST.PLAYER_ORIENTATION.SIDE_RIGHT);
-					p.move(ds*1, 0);
+					if (this.gameState.isValidPlayerMove(p, ds, 0))	{
+						p.move(ds*1, 0);
+					}
 				}
-				if (!playerInputState.keyW && !playerInputState.keyA && !playerInputState.keyS && !playerInputState.keyD) {
+				if (!playerInputState.getKeyUp() && !playerInputState.getKeyLeft() && !playerInputState.getKeyDown() && !playerInputState.getKeyRight()) {
 					// Stop moving
 					p.setMoving(false);
 				}

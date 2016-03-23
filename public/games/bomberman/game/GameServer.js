@@ -15,7 +15,7 @@ class GameServerBomberman extends CommonBackend.GameServer {
 	constructor(gameID, playerIDs, gameConfig) {
 		super(gameID, playerIDs, gameConfig);
 
-		this.gameState = new GameState();
+		this.gameState = GameState.buildRandomGameState(gameConfig);
 		this.playerInputStates = [];
 		this.gameStateFrameProcessor = new GameStateFrameProcessor(this.gameConfig, this.gameState, this.playerInputStates);
 	}
@@ -25,9 +25,8 @@ class GameServerBomberman extends CommonBackend.GameServer {
 		this.log("Initializing Bomberman...");
 		// Construct PlayerInputState per player
 		forEach.call(this, this.playerIDs, function(playerID, i) {
-			var newPlayer = new GameState.Player();
-			this.gameState.addPlayer(newPlayer);
 			this.playerInputStates[i] = new PlayerInputState(playerID);
+			this.log("Added player " + playerID);
 		});	
 
 		this.startGameLoop();
@@ -60,7 +59,7 @@ class GameServerBomberman extends CommonBackend.GameServer {
 	onGameLoop(dt) {
 		dt *= 1000;
 		this.gameStateFrameProcessor.processSnapshot(dt);
-		var networkFrame = this.gameStateFrameProcessor.buildNetworkFrame();
+		var networkFrame = this.gameStateFrameProcessor.getNetworkFrame();
 		this.broadcastMessage(networkFrame);
 
 	}

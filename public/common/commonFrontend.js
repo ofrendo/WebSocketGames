@@ -110,7 +110,7 @@ var CommonFrontend = (function() {
 					pingHandler.onPong();
 				}
 				else {
-					console.log("Message received: " + e.data); //Should contain game state
+					//console.log("Message received: " + e.data); //Should contain game state
 					if (typeof self.wsListener.onWSMessage === "function") self.wsListener.onWSMessage(m);
 				}
 			};
@@ -154,7 +154,10 @@ var CommonFrontend = (function() {
 				mLeft = (w-h)/2;
 				w = h;
 			}
-			return {w: w, h: h, mLeft: mLeft, mTop: mTop, viewI: iView}; 
+			var scaleX = w / (gameConfig.game.xTiles * gameConfig.game.tileSize); // If server game width = 1000 but client only has 500, scaleX = 0.5
+			var scaleY = h / (gameConfig.game.yTiles * gameConfig.game.tileSize);
+
+			return {w: w, h: h, mLeft: mLeft, mTop: mTop, viewI: iView, scaleX: scaleX, scaleY: scaleY}; 
 		}
 		else if (nViews === 2) {
 			var p = 5; // Padding of each renderer to middle
@@ -172,14 +175,17 @@ var CommonFrontend = (function() {
 			else {
 				mLeft = Math.round(w/2 + p);
 			}
+			var scaleX = wR / (gameConfig.game.xTiles * gameConfig.game.tileSize); // If server game width = 1000 but client only has 500, scaleX = 0.5
+			var scaleY = hR / (gameConfig.game.yTiles * gameConfig.game.tileSize);
 
-			return {w: wR, h: hR, mLeft: mLeft, mTop: mTop, viewI: iView};
+			return {w: wR, h: hR, mLeft: mLeft, mTop: mTop, viewI: iView, scaleX: scaleX, scaleY: scaleY};
 		}
 		else {
 			return;
 		}
 
 		
+
 	}
 
 	module = {};

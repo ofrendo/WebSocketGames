@@ -17,17 +17,17 @@
 			"maxPlayers": 4 
 		},
 		"server": {
-			"fps": 15
+			"fps": 30
 		},
 		"player": {
-			"fps": 15
+			"fps": 30
 		},
 		"game": {
-			"xTiles": 21,
+			"xTiles": 17,
 			"yTiles": 17,
 			"tileSize": 50,
 			"nPlayers": 1,
-			"playerSize": 40,
+			"playerSize": 30,
 			"playerSpeed": 300
 		}
 	}

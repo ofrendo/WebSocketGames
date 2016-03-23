@@ -1,7 +1,7 @@
 var CONST = GameState.CONST;
 
 // Model representing the game
-var gameStateView = new GameState();
+var gameStateView = new GameState(gameConfig);
 
 // Controller listening to WS messages and changing according to a playout delay buffer
 var networkHandler = new NetworkHandler(gameStateView, {

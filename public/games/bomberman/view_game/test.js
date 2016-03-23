@@ -129,12 +129,12 @@ function NetworkSimulation(networkListeners, args) {
 var gameStateServer = GameState.buildRandomGameState(gameConfig);
 
 // Client side models
-var gameStateView1 = new GameState();
+var gameStateView1 = new GameState(gameConfig);
 //var p1View1 = new GameState.Player();
 //gameStateView1.addPlayer(p1View1);
 
 // CLient side models of right view
-var gameStateView2 = new GameState();
+var gameStateView2 = new GameState(gameConfig);
 //var p1View2 = new GameState.Player();
 //gameStateView2.addPlayer(p1View2);
 

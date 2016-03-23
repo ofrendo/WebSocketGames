@@ -32,9 +32,12 @@
 	// This is the model: should NOT know anything about view
 	// x, y positions are discrete units of positions in the game state. The position x,y represents the center of an entity (not upper left!)
 	class GameState {
-		constructor() {
+		constructor(gameConfig) {
 			this.players = [];
-			this.entities = [];
+			this.permEntities = GameState.buildPermEntities(gameConfig); // used for not sending these in network frames
+			this.tempEntities = []; // used for sending temporary objects
+
+			GameState.gameConfig = gameConfig;
 		}
 
 		addPlayer(player) {
@@ -43,17 +46,86 @@
 		getPlayers() {
 			return this.players;
 		}
-		addEntity(entity) {
-			this.entities.push(entity);
+		addPermEntity(entity) {
+			this.permEntities.push(entity);
+		}
+		addTempEntity(entity) {
+			this.tempEntities.push(entity);
 		}
 		getEntities() {
-			return this.entities;
+			return this.getPermEntities().concat(this.getTempEntities());
+		}
+		getPermEntities() {
+			return this.permEntities;
+		}
+		getTempEntities() {
+			return this.tempEntities;
+		}
+
+		//cycle through all entities to check if this move is OK
+		// @param player The player who wants to move
+		// @param dx x value the player wants to move by
+		// @param dy y value the player wants to move by
+		isValidPlayerMove(player, dx, dy) {
+			var result = true;
+			forEach.call(this, this.getEntities(), function(e, i) {
+				if (result === true && this.isCollision(
+						player.getPositionX()+dx, 
+						player.getPositionY()+dy, 
+						player.getSize(),
+						e.getPositionX(), 
+						e.getPositionY(), 
+						e.getSize(), player, e)
+					 === true) {
+					result = false;
+				}
+			});
+			return result;
 		}
 
 		// returns what (all entites) is colliding on which side to the player
-		// making it possible to move "out" of the bomb but not towards it
-		isCollision(entity1, entity2) {
+		// making it possible to move "out" of the bomb but not inside it
+		isCollision(e1x, e1y, e1size, e2x, e2y, e2size, p, e) {
+			//x,y is the center of the entities
+			var dx = Math.abs(e1x - e2x);
+			var dy = Math.abs(e1y - e2y);
+			var minDist = e1size/2+e2size/2;
 
+			if (dx < minDist && dy < minDist) {
+				//console.log("dx=" + dx + " dy=" + dy + " e=" + e.getPositionX() + "," + e.getPositionY() + " p=" + p.getPositionX() + "," + p.getPositionY() + " mindist=" + minDist);
+				return true;
+			}
+			else {
+				//console.log(dy);
+				return false;
+			}
+
+		}
+
+		// Starting blocks
+		static buildPermEntities(gameConfig) {
+			var xTiles = gameConfig.game.xTiles;
+			var yTiles = gameConfig.game.yTiles;
+			var tileSize = gameConfig.game.tileSize;
+
+			var result = [];
+			for (var x=0;x<xTiles;x++) {
+				for (var y=0;y<yTiles;y++) {
+
+					// Blocks
+					if (x === 0 || // upper row
+						y === 0 || // left column
+						x === xTiles-1 || // bottom row
+						y === yTiles-1 || // right column
+					    (x % 2 === 0 && y % 2 === 0)) { // inner blocks
+
+						var block = new Block(x*tileSize+tileSize/2, y*tileSize+tileSize/2);
+						result.push(block);
+					}
+
+				}
+			}
+			return result;
 		}
 
 		static getStartPositions(nPlayers, xTiles, yTiles, tileSize) {
@@ -85,10 +157,10 @@
 
 			}
 			return result;
-		}
+		}	
 
 		static buildRandomGameState(gameConfig) {
-			var result = new GameState();
+			var result = new GameState(gameConfig);
 
 			var xTiles = gameConfig.game.xTiles;
 			var yTiles = gameConfig.game.yTiles;
@@ -104,35 +176,18 @@
 				result.addPlayer(player);
 			}
 
-			// Starting blocks
-			for (var x=0;x<xTiles;x++) {
-				for (var y=0;y<yTiles;y++) {
-
-					// Blocks
-					if (x === 0 || // upper row
-						y === 0 || // left column
-						x === xTiles-1 || // bottom row
-						y === yTiles-1 || // right column
-					    (x % 2 === 0 && y % 2 === 0)) { // inner blocks
-
-						var block = new Block(x*tileSize+tileSize/2, y*tileSize+tileSize/2);
-						result.addEntity(block);
-					}
-
-				}
-			}
 			return result;
 		}
 
 		buildNetworkFrame() {
-			var result = [this.getPlayers().length, this.getEntities().length];
+			var result = [this.getPlayers().length, this.getTempEntities().length];
 			forEach(this.getPlayers(), function(p) {
 				result.push(p.x);
 				result.push(p.y);
 				result.push(p.orientation);
 				result.push(p.moving);
 			});
-			forEach(this.getEntities(), function(e) {
+			forEach(this.getTempEntities(), function(e) {
 				result.push(e.getType());
 				result.push(e.x);
 				result.push(e.y);
@@ -140,6 +195,7 @@
 			return result;
 		}
 
+		// TODO: Better: use an integer "counter" as a pointer
 		static buildFromNetworkFrame(gameState, networkFrame) {
 			var nPlayers = networkFrame[0];
 			var nEntities = networkFrame[1];
@@ -187,6 +243,25 @@
 			throw new Error("abstract method getType not overriden");
 		}
 
+		setPosition(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		move(dX, dY) {
+			this.x += dX;
+			this.y += dY;
+		}
+		getPositionX() {
+			return this.x; 
+		}
+		getPositionY() {
+			return this.y; 
+		}
+
+		getSize() {
+			return GameState.gameConfig.game.tileSize;
+		}
+
 		static buildEntity(type, x, y) {
 			switch (type) {
 				case CONST.ENTITY_TYPES.BLOCK: 
@@ -212,21 +287,6 @@
 			this.movingChanged = false;
 		}
 
-		// External functions
-		setPosition(x, y) {
-			this.x = x;
-			this.y = y;
-		}
-		move(dX, dY) {
-			this.x += dX;
-			this.y += dY;
-		}
-		getPositionX() {
-			return this.x; //self.textures[self.orientation].x;
-		}
-		getPositionY() {
-			return this.y; //self.textures[self.orientation].y;
-		}
 		setMoving(moving) {
 			if (this.moving !== moving) {
 				this.moving = moving;
@@ -240,6 +300,11 @@
 				this.orientation = orientation;
 				this.orientationChanged = true;
 			}
+		}
+
+		// override
+		getSize() {
+			return GameState.gameConfig.game.playerSize;
 		}
 	}
 
@@ -273,6 +338,12 @@
 	GameState.Player = Player;
 
 	exports.GameState = GameState;
+
+	function forEach(a, callback) {
+		for (var i=0;i<a.length;i++) {
+			callback.call(this, a[i], i);
+		}
+	}
 
 })(typeof exports === 'undefined' ? 
 	//this['GameState']={} : 

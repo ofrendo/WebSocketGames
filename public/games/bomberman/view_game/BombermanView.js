@@ -130,6 +130,8 @@ function BombermanView(rendererArgs) {
 	this.stage = new PIXI.Container();
 	this.stage.interactive = true;
 	this.renderer = generateRenderer(rendererArgs);
+	this.scaleX = rendererArgs.scaleX;
+	this.scaleY = rendererArgs.scaleY;
 
 	// Only access to game state model
 	this.gameState = null;
@@ -137,6 +139,7 @@ function BombermanView(rendererArgs) {
 
 	// Each player has his own 4 textures assigned to it
 	this.playerTextures = []; 
+	this.permEntityTextures = [];
 
 	this.onBrowserAnimationFrame = null;
 	this.onInitCallback = null;
@@ -156,6 +159,9 @@ function BombermanView(rendererArgs) {
 		forEach(self.gameState.getPlayers(), function(p, i) {
 			self.playerTextures[i] = initializePlayerTextures();
 		});
+
+		self.permEntityTextures = initializePermEntityTextures(self.gameState.getPermEntities());
+		self.permEntityTextures.isDrawn = false;
 
 		if (typeof self.onInitCallback === "function") {
 			self.onInitCallback(true);
@@ -177,7 +183,14 @@ function BombermanView(rendererArgs) {
 			self.onBrowserAnimationFrame();
 		}
 
-		//console.log(self.gameState.getEntities().length);
+		if (self.permEntityTextures.isDrawn === false) {
+			self.permEntityTextures.isDrawn = true;
+			forEach(self.permEntityTextures, function(t) {
+				self.stage.addChild(t);
+			});
+		}
+
+		//console.log(self.gameState.getPermEntities().length);
 		// Need to process all things that have changed, so delta to before
 		// This does NOT mean position, which should be handled internally by pixijs
 		forEach(self.gameState.getPlayers(), function(p, i) {
@@ -185,8 +198,8 @@ function BombermanView(rendererArgs) {
 			// Update positions of all player textures
 			// TODO: interpolate
 			forEach(self.playerTextures[i], function(a, j) {
-				self.playerTextures[i][j].x = p.x;
-				self.playerTextures[i][j].y = p.y;
+				self.playerTextures[i][j].x = self.scaleX * p.x;
+				self.playerTextures[i][j].y = self.scaleY * p.y;
 			});
 
 			// State: orientation changed
@@ -221,12 +234,6 @@ function BombermanView(rendererArgs) {
 	}
 
 
-	function forEach(a, callback) {
-		for (var i=0;i<a.length;i++) {
-			callback(a[i], i);
-		}
-	}
-
 	function initializePlayerTextures() {
 		var result = [];
 		for (var orientation in CONST.PLAYER_ORIENTATION) { // will be FRONT, BACK, ...
@@ -242,11 +249,30 @@ function BombermanView(rendererArgs) {
 			t.position.set(100); 
 			t.anchor.set(0.5, 0.5);
 			t.animationSpeed = 0.25;
+			t.width = gameConfig.game.playerSize * self.scaleX;
+			//t.scale.x = self.scaleX;
+			t.height = gameConfig.game.playerSize * self.scaleY;
+			//t.scale.y = self.scaleY;
 			if (flipTexture === true) {
-				t.scale.x = -1;		
+				t.scale.x *= -1;		
 			}	
 			result.push(t);
 		}
+		return result;
+	}
+	// to be called once when game state is set
+	function initializePermEntityTextures(permEntities) {
+		var result = [];
+		forEach(permEntities, function(block) {
+			var t = PIXI.Sprite.fromImage(CONST.ENTITY_PATHS.BLOCK_PATH);
+			t.position.set(self.scaleX*block.getPositionX(), self.scaleY*block.getPositionY());
+			t.anchor.set(0.5, 0.5);
+			//t.scale.x = 0.5;
+			//t.scale.y = 0.5;
+			t.width = gameConfig.game.tileSize * self.scaleX;
+			t.height = gameConfig.game.tileSize * self.scaleY;
+			result.push(t);
+		});
 		return result;
 	}
 
@@ -254,7 +280,7 @@ function BombermanView(rendererArgs) {
 	// w, h, mLeft, mTop
 	function generateRenderer(rendererArgs) {
 		log("Init: Rendering ");
-		//console.log(rendererArgs);
+		console.log(rendererArgs);
 		var renderer = new PIXI.WebGLRenderer(rendererArgs.w, rendererArgs.h);
 		var elem = renderer.view;
 		elem.style.marginTop = rendererArgs.mTop + "px";
@@ -282,6 +308,12 @@ function BombermanView(rendererArgs) {
 		
 		requestAnimationFrame(animate.bind(self));
 	}	
+
+	function forEach(a, callback) {
+		for (var i=0;i<a.length;i++) {
+			callback(a[i], i);
+		}
+	}
 
 	function log(m) {
 		console.log("BombermanView: " + m);
