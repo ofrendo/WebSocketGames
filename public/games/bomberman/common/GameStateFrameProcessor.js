@@ -31,7 +31,6 @@ if (typeof require === "function") {
 		// @param dt Time passed since processing last frame
 		// @return What, if anything?
 		processSnapshot(dt) {
-			
 			// Process each player movement
 			var v = this.gameConfig.game.playerSpeed;
 			forEach.call(this, this.gameState.getPlayers(), function(p, i) {
@@ -68,6 +67,17 @@ if (typeof require === "function") {
 				if (!playerInputState.getKeyUp() && !playerInputState.getKeyLeft() && !playerInputState.getKeyDown() && !playerInputState.getKeyRight()) {
 					// Stop moving
 					p.setMoving(false);
+				}
+
+				// Bombs
+				if (playerInputState.getKeyBomb()) {
+					if (this.gameState.isValidPlayerBomb(p)) {
+						//console.log("Can put a bomb here");
+						this.gameState.placeBomb(p);
+					}
+					else {
+						
+					}
 				}
 			}); 
 			this.incrementFrameNumber();

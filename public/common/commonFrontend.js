@@ -183,9 +183,12 @@ var CommonFrontend = (function() {
 		else {
 			return;
 		}
+	}
+	function getFullscreenRendererArgs() {
+		var w = $(window).width();
+		var h = $(window).height();
 
-		
-
+		return {w: w, h: h, mLeft: 0, mTop: 0}; 
 	}
 
 	module = {};
@@ -193,6 +196,7 @@ var CommonFrontend = (function() {
 	module.NetworkTrafficHandler = NetworkTrafficHandler;
 	module.ConnectionWrapper = ConnectionWrapper;
 	module.getRendererArgs = getRendererArgs;
+	module.getFullscreenRendererArgs = getFullscreenRendererArgs;
 
 	return module;
 })();

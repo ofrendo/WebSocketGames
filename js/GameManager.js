@@ -162,6 +162,9 @@ var Game = function(gameID, gameConfig) {
 
 	function startServer() {
 		console.log(self.gameID + " Game started.");
+		if (gameConfig.game !== undefined) {
+			gameConfig.game.nPlayers = Math.max(self.conManager.getPlayerIDs().length, 1);
+		}
 		var GameServerClass = gameServers[gameConfig.name];
 		var gameServer = new GameServerClass(
 			self.gameID, 

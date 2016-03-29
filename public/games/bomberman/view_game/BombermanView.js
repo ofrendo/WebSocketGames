@@ -21,18 +21,16 @@ function NetworkHandler(playerGameState, args) {
 		networkFrame = JSON.parse(networkFrame);
 		
 		if (isGameInitialized === false) {
-			GameState.buildFromNetworkFrame(playerGameState, networkFrame);
+			GameState.buildFromNetworkFrame(playerGameState, gameConfig, networkFrame);
 			isGameInitialized = true;
 			if (typeof self.onGameStateInit === "function") {
 				self.onGameStateInit();
 			}
 			return;
-			//console.log(networkFrame);
-			//console.log("here: " + playerGameState.getPlayers().length + " " +  playerGameState.getEntities().length);
 		}
 		//console.log(networkFrame);
 		frameNumber = networkFrame.pop();
-		networkFrame.splice(0, 2);
+		networkFrame.splice(0, 1);
 		//console.log(networkFrame);
 		if (args.playoutDelay === 0) {
 			// Process new network frame immediately
@@ -83,13 +81,7 @@ function NetworkHandler(playerGameState, args) {
 	}
 
 	function playoutFrame(networkFrame) {
-		//console.log(networkFrame);
-		forEach(playerGameState.getPlayers(), function(p, i) {
-			p.setPosition(networkFrame[i*4 +0], networkFrame[i*4 +1]);
-			p.setOrientation(networkFrame[i*4 +2]);
-			p.setMoving(networkFrame[i*4 +3]);
-		});
-
+		playerGameState.playoutFrame(networkFrame);
 	}
 
 	function interpolateFrames(f1, f2) {
@@ -128,7 +120,7 @@ function BombermanView(rendererArgs) {
 	var spritePath = "/games/bomberman/res/Bombing_Chap_Sprite_Set/gen/bombermanAll.json";
 	this.loader = PIXI.loader.add("bomberman" + rendererArgs.viewI, spritePath);
 	this.stage = new PIXI.Container();
-	this.stage.interactive = true;
+	this.stage.interactive = false;
 	this.renderer = generateRenderer(rendererArgs);
 	this.scaleX = rendererArgs.scaleX;
 	this.scaleY = rendererArgs.scaleY;
@@ -139,7 +131,7 @@ function BombermanView(rendererArgs) {
 
 	// Each player has his own 4 textures assigned to it
 	this.playerTextures = []; 
-	this.permEntityTextures = [];
+	this.entityTextures = [];
 
 	this.onBrowserAnimationFrame = null;
 	this.onInitCallback = null;
@@ -160,8 +152,8 @@ function BombermanView(rendererArgs) {
 			self.playerTextures[i] = initializePlayerTextures();
 		});
 
-		self.permEntityTextures = initializePermEntityTextures(self.gameState.getPermEntities());
-		self.permEntityTextures.isDrawn = false;
+		//self.permEntityTextures = initializePermEntityTextures(self.gameState.getPermEntities());
+		//self.permEntityTextures.isDrawn = false;
 
 		if (typeof self.onInitCallback === "function") {
 			self.onInitCallback(true);
@@ -183,12 +175,25 @@ function BombermanView(rendererArgs) {
 			self.onBrowserAnimationFrame();
 		}
 
-		if (self.permEntityTextures.isDrawn === false) {
+		forEach(self.gameState.getEntities(), function(e, i) {
+			if (!self.entityTextures[i]) {
+				var t = getEntityTexture(e);
+				self.stage.addChild(t);
+				self.entityTextures[i] = t;
+			}
+			else if (self.entityTextures[i].type !== e.getType()) {
+
+			}
+
+
+		});
+
+		/*if (self.permEntityTextures.isDrawn === false) {
 			self.permEntityTextures.isDrawn = true;
 			forEach(self.permEntityTextures, function(t) {
 				self.stage.addChild(t);
 			});
-		}
+		}*/
 
 		//console.log(self.gameState.getPermEntities().length);
 		// Need to process all things that have changed, so delta to before
@@ -264,18 +269,39 @@ function BombermanView(rendererArgs) {
 	function initializePermEntityTextures(permEntities) {
 		var result = [];
 		forEach(permEntities, function(block) {
-			var t = PIXI.Sprite.fromImage(CONST.ENTITY_PATHS.BLOCK_PATH);
-			t.position.set(self.scaleX*block.getPositionX(), self.scaleY*block.getPositionY());
-			t.anchor.set(0.5, 0.5);
-			//t.scale.x = 0.5;
-			//t.scale.y = 0.5;
-			t.width = gameConfig.game.tileSize * self.scaleX;
-			t.height = gameConfig.game.tileSize * self.scaleY;
+			var t = getEntityTexture(block);
 			result.push(t);
 		});
 		return result;
 	}
 
+	function getEntityTexture(e) {
+		var path;
+		switch (e.getType()) {
+			case CONST.ENTITY_TYPES.EMPTY: 
+				path = CONST.ENTITY_PATHS.EMPTY_PATH;
+				break;
+			case CONST.ENTITY_TYPES.BLOCK:
+				path = CONST.ENTITY_PATHS.BLOCK_PATH;
+				break;
+			case CONST.ENTITY_TYPES.DESTROYABLE_BLOCK:
+				path = CONST.ENTITY_PATHS.DESTROYABLE_BLOCK_PATH;
+				break;
+			case CONST.ENTITY_TYPES.BOMB:
+				path = CONST.ENTITY_PATHS.BOMB_PATH;
+				break;
+			case CONST.ENTITY_TYPES.POWER_UP:
+				path = CONST.ENTITY_PATHS.POWER_UP_PATH;
+				break;
+		}
+		var t = new PIXI.Sprite.fromImage(path);
+		t.type = e.getType();
+		t.position.set(self.scaleX*e.getPositionX(), self.scaleY*e.getPositionY());
+		t.anchor.set(0.5, 0.5);
+		t.width = gameConfig.game.tileSize * self.scaleX;
+		t.height = gameConfig.game.tileSize * self.scaleY;
+		return t;
+	}
 
 	// w, h, mLeft, mTop
 	function generateRenderer(rendererArgs) {
@@ -292,13 +318,6 @@ function BombermanView(rendererArgs) {
 		return renderer;
 	}
 
-	function getImageTexture(path) {
-		var img = new Image();
-		img.src = 'path';
-		var base = new PIXI.BaseTexture(img);
-		var texture = new PIXI.Texture(base);// return you the texture
-		return texture;
-	}
 
 	function animate() {
 		if (self.isRunning === true) {

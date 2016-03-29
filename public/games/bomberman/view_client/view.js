@@ -44,7 +44,7 @@ class InputHandler {
 			case 83: //s
 				this.playerInputState.setKeyDown(false);
 				break;
-			case 68: //d
+			case 68: //d TODO add arrow keys
 				this.playerInputState.setKeyRight(false);
 				break;
 		}
@@ -69,9 +69,9 @@ class InputSender {
 	}
 
 	startSending() {
-		this.log("Starting to send...");
+		this.log("Prepared to send...");
 		this.running = true;
-		this.onAnimationFrame();
+		//this.onAnimationFrame();
 	}
 	stopSending() {	
 		// maybe send pause request
@@ -84,7 +84,7 @@ class InputSender {
 			if (this.frameNumber === 0) {
 				this.sendFrame();
 			}
-			requestAnimationFrame(this.onAnimationFrame.bind(this));
+			//requestAnimationFrame(this.onAnimationFrame.bind(this));
 		}
 	}
 	// Send frame of user inputs to server
@@ -103,7 +103,9 @@ class InputSender {
 // Model for input state
 var playerInputState = new PlayerInputState();
 
-// Track browser events to change playerInputState
+// PIXIjs canvas of the controller
+var controllerView = new ControllerView(CommonFrontend.getFullscreenRendererArgs(), playerInputState);
+// Track browser key events to change playerInputState
 var inputHandler = new InputHandler(playerInputState);
 
 // Wrapper for websocket communication
@@ -112,7 +114,7 @@ var bombermanWrapper = new CommonFrontend.ConnectionWrapper();
 // Send frames to server
 var inputSender = new InputSender(playerInputState, bombermanWrapper);
 bombermanWrapper.setWSListener(inputSender);
-
+controllerView.setOnAnimationFrame(inputSender.onAnimationFrame.bind(inputSender));
 
 inputHandler.startListening();
 inputSender.startSending();

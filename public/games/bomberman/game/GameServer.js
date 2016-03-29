@@ -42,8 +42,10 @@ class GameServerBomberman extends CommonBackend.GameServer {
 	// Called each time a player sends an input
 	// ==> Change the corresponding PlayerInputState object
 	onPlayerMessage(message, playerID) {
-		var playerInputState = this.getPlayerInputState(playerID);
-		PlayerInputState.setFromNetworkFrame(playerInputState, message);
+		if (this.isRunning() === true) {
+			var playerInputState = this.getPlayerInputState(playerID);
+			PlayerInputState.setFromNetworkFrame(playerInputState, message);
+		}
 	}
 	getPlayerInputState(playerID) {
 		for (var i = 0; i < this.playerInputStates.length;i++) {

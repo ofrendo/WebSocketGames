@@ -23,6 +23,8 @@ canvas {
 	position: absolute;
 	right: 34px;
 	top: 60px;
+
+	z-index: 999;
 }
 
 #divNetworkTraffic {
@@ -30,6 +32,8 @@ canvas {
 	right: 34px;
 	top: 93px;
 	height: 56px !important;
+
+	z-index: 999;
 }	
 
 .spanPingText {

@@ -31,6 +31,9 @@ function InputHandler() {
 			case 68: //d
 				playerInputState.setKeyRight(true);
 				break;
+			case 32: // space
+				playerInputState.setKeyBomb(true);
+				break;
 		}
 
 	}
@@ -49,6 +52,8 @@ function InputHandler() {
 			case 68: //d
 				playerInputState.setKeyRight(false);
 				break;
+			case 32: // space
+				playerInputState.setKeyBomb(false);
 		}
 	}
 }
