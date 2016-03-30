@@ -34,6 +34,14 @@ if (typeof require === "function") {
 			// Process each player movement
 			var v = this.gameConfig.game.playerSpeed;
 			forEach.call(this, this.gameState.getPlayers(), function(p, i) {
+				if (p.isAlive() === true && this.gameState.isPlayerTouchingFire(p) === true) {
+					p.kill();
+				}
+
+				if (p.isAlive() === false) {
+					return;
+				}
+
 				var playerInputState = this.playerInputStates[i];
 				var ds = Math.round(v * (dt/1000)); // how much has the player moved since last frame
 				if (playerInputState.getKeyUp()) {
@@ -80,6 +88,36 @@ if (typeof require === "function") {
 					}
 				}
 			}); 
+			
+			// Process temp entities
+			var removedBombs = [];
+			forEach.call(this, this.gameState.getBombs(), function(b) {
+				b.subtractDurationLeft(dt);
+				if (b.isDurationOver()) {
+					this.gameState.explodeBomb(b);
+					removedBombs.push(b);
+					//console.log("BOMB EXPLODED");
+				}
+			});
+			for (var i=0;i<removedBombs.length;i++){
+				this.gameState.removeBomb(removedBombs[i]);
+				removedBombs[i].playerOwner.decrementBombsCurrent();
+			}
+
+			// Process fires
+			var removedFires = [];
+			forEach.call(this, this.gameState.getFires(), function(f) {
+				f.subtractDurationLeft(dt);
+				//console.log(f.getDurationLeft());
+				if (f.isDurationOver()) {
+					removedFires.push(f);
+
+				}
+			});
+			for (var i=0;i<removedFires.length;i++) {
+				this.gameState.removeFire(removedFires[i]);
+			}
+
 			this.incrementFrameNumber();
 		}
 		incrementFrameNumber() {

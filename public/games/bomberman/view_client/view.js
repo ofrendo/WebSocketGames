@@ -29,6 +29,9 @@ class InputHandler {
 			case 68: //d
 				this.playerInputState.setKeyRight(true);
 				break;
+			case 32: // space
+				this.playerInputState.setKeyBomb(true);
+				break;
 		}
 
 	}
@@ -46,6 +49,9 @@ class InputHandler {
 				break;
 			case 68: //d TODO add arrow keys
 				this.playerInputState.setKeyRight(false);
+				break;
+			case 32: // space
+				this.playerInputState.setKeyBomb(false);
 				break;
 		}
 	}
@@ -118,3 +124,67 @@ controllerView.setOnAnimationFrame(inputSender.onAnimationFrame.bind(inputSender
 
 inputHandler.startListening();
 inputSender.startSending();
+
+
+
+//window.onload = onScreenChange;
+window.addEventListener("orientationchange", onScreenChange);
+window.addEventListener("resize", onScreenChange);
+
+function onScreenChange() {
+	// Scroll to fullscreen
+	// meh...
+	//window.scrollTo(0, 1);
+	//hideAddressBar();
+
+	controllerView.adaptRenderer(CommonFrontend.getFullscreenRendererArgs());
+}
+
+// Hide address bar on devices like the iPhone
+//---------------------------------------------
+function hideAddressBar() {
+	// Big screen. Fixed chrome likely.
+	//if(screen.width > 980 || screen.height > 980) return;
+
+	// Standalone (full screen webapp) mode
+	//if(window.navigator.standalone === true) return;
+
+	// Page zoom or vertical scrollbars
+	/*if(window.innerWidth !== document.documentElement.clientWidth) {
+		// Sometimes one pixel too much. Compensate.
+		if((window.innerWidth - 1) !== document.documentElement.clientWidth) return;
+
+	}*/
+
+	setTimeout(function() {
+		// Already scrolled?
+		if(window.pageYOffset !== 0) return;
+
+		// Perform autoscroll
+		window.scrollTo(0, 1);
+
+		// Reset body height and scroll
+		if(bodyTag !== undefined) bodyTag.style.height = window.innerHeight + 'px';
+		window.scrollTo(0, 0);
+
+	}, 1000);
+
+}
+
+function toggleFullScreen() {
+  var doc = window.document;
+  var docEl = doc.documentElement;
+
+  var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+  var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+  if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+    requestFullScreen.call(docEl);
+  }
+  else {
+    cancelFullScreen.call(doc);
+  }
+}
+
+
+

@@ -132,6 +132,8 @@ function BombermanView(rendererArgs) {
 	// Each player has his own 4 textures assigned to it
 	this.playerTextures = []; 
 	this.entityTextures = [];
+	this.bombTextures = [];
+	this.fireTextures = [];
 
 	this.onBrowserAnimationFrame = null;
 	this.onInitCallback = null;
@@ -176,16 +178,48 @@ function BombermanView(rendererArgs) {
 		}
 
 		forEach(self.gameState.getEntities(), function(e, i) {
+			//if (e.getType() === CONST.ENTITY_TYPES.BOMB) 
+			//	console.log("HERE");
 			if (!self.entityTextures[i]) {
+				//console.log(e);
 				var t = getEntityTexture(e);
 				self.stage.addChild(t);
 				self.entityTextures[i] = t;
 			}
-			else if (self.entityTextures[i].type !== e.getType()) {
-
+			else if (self.entityTextures[i].type !== e.getType()) { // means a field has changed
+				var newT = getEntityTexture(e);
+				var oldT = self.entityTextures[i];
+				if (oldT.type !== CONST.ENTITY_TYPES.EMPTY) {
+					// TODO: Do this with an animation
+					self.stage.removeChild(oldT); // only remove old texture if it isnt empty
+				}
+				self.stage.addChild(newT); // only add new texture if it isnt empty
+				self.entityTextures[i] = newT;				
 			}
+		});
 
+		// Remove all bomb textures
+		forEach(self.bombTextures, function(t) {
+			self.stage.removeChild(t);
+		});
+		self.bombTextures = [];
+		// Now add them
+		forEach(self.gameState.getBombs(), function(bomb) {
+			var t = getEntityTexture(bomb);
+			self.stage.addChild(t);
+			self.bombTextures.push(t);
+		});
 
+		// Remove all fire textures
+		forEach(self.fireTextures, function(t) {
+			self.stage.removeChild(t);
+		});
+		self.fireTextures = [];
+		// Now add them
+		forEach(self.gameState.getFires(), function(fire) {
+			var t = getEntityTexture(fire);
+			self.stage.addChild(t);
+			self.fireTextures.push(t);
 		});
 
 		/*if (self.permEntityTextures.isDrawn === false) {
@@ -201,7 +235,6 @@ function BombermanView(rendererArgs) {
 		forEach(self.gameState.getPlayers(), function(p, i) {
 
 			// Update positions of all player textures
-			// TODO: interpolate
 			forEach(self.playerTextures[i], function(a, j) {
 				self.playerTextures[i][j].x = self.scaleX * p.x;
 				self.playerTextures[i][j].y = self.scaleY * p.y;
@@ -252,11 +285,11 @@ function BombermanView(rendererArgs) {
 
 			var t = new PIXI.extras.MovieClip(frames);
 			t.position.set(100); 
-			t.anchor.set(0.5, 0.5);
+			t.anchor.set(0.5, 0.75);
 			t.animationSpeed = 0.25;
 			t.width = gameConfig.game.playerSize * self.scaleX;
 			//t.scale.x = self.scaleX;
-			t.height = gameConfig.game.playerSize * self.scaleY;
+			t.height = gameConfig.game.playerSize * self.scaleY * 2;
 			//t.scale.y = self.scaleY;
 			if (flipTexture === true) {
 				t.scale.x *= -1;		
@@ -289,6 +322,9 @@ function BombermanView(rendererArgs) {
 				break;
 			case CONST.ENTITY_TYPES.BOMB:
 				path = CONST.ENTITY_PATHS.BOMB_PATH;
+				break;
+			case CONST.ENTITY_TYPES.FIRE:
+				path = CONST.ENTITY_PATHS.FIRE_PATH;
 				break;
 			case CONST.ENTITY_TYPES.POWER_UP:
 				path = CONST.ENTITY_PATHS.POWER_UP_PATH;

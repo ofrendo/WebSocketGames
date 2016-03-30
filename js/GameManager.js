@@ -52,8 +52,12 @@ var ConManager = function() {
 		}
 	};
 	this.broadcastMessage = function(message) {
-		for (i=0;i<connections.length;i++) 
-			connections[i].ws.send(message);
+		for (i=0;i<connections.length;i++) {
+			if (connections[i].ws.readyState === 1) { // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket#Ready_state_constants
+				connections[i].ws.send(message);
+			}
+		}
+			
 	};
 	this.isValidPlayerID = function(playerID) {
 		for (i=0;i<connections.length;i++) {

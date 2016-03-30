@@ -1,5 +1,9 @@
 extends ../../view_client_layout.jade
 
+block additionalHead
+	link(rel='stylesheet', href='/games/bomberman/view_client/view.css')
+	meta(name="viewport", content="width=device-width, initial-scale=1.0,  minimum-scale=1.0")
+
 block content
 	script(src="/games/bomberman/common/GameState.js")
 	script(src="/games/bomberman/common/PlayerInputState.js")

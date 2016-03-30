@@ -104,7 +104,7 @@ var CommonFrontend = (function() {
 				}
 			};
 			self.ws.onmessage = function(e) {
-				networkTrafficHandler.addCurrentTrafficUp(e.data * 16);
+				networkTrafficHandler.addCurrentTrafficDown(e.data.length * 16);
 				var m = JSON.parse(e.data);
 				if (m.messageType === Common.MESSAGE_TYPES.PONG) {
 					pingHandler.onPong();
