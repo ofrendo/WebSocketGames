@@ -148,5 +148,5 @@ function Lobby() {
 	};
 }
 
-
-ko.applyBindings(new Lobby());
+var lobby = new Lobby();
+ko.applyBindings(lobby);

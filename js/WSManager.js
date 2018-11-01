@@ -37,7 +37,7 @@ var WSManager = (function() {
 	}
 
 	function handleLobbyWS(ws, wsUrl, gameID) {
-		var connectionType = getParameterByName(Common.PARAM_NAME_CONNECTION_TYPES, wsUrl);
+		var connectionType = Common.getParameterByName(Common.PARAM_NAME_CONNECTION_TYPES, wsUrl);
 		var game = GameManager.getGameByID(gameID);
 		var conManager = game.conManager;
 		var con = {
@@ -47,7 +47,7 @@ var WSManager = (function() {
 
 		switch (connectionType) {
 			case Common.CONNECTION_TYPES.PLAYER: 
-				var playerID = getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
+				var playerID = Common.getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
 				if (!conManager.isValidPlayerID(playerID)) {
 					ws.close(1, "Player with playerID " + playerID + " already exists.");
 				}
@@ -92,14 +92,14 @@ var WSManager = (function() {
 			ws.close(1, "Invalid game ID.");
 			return;
 		}
-		var connectionType = getParameterByName(Common.PARAM_NAME_CONNECTION_TYPES, wsUrl);
+		var connectionType = Common.getParameterByName(Common.PARAM_NAME_CONNECTION_TYPES, wsUrl);
 		var game = GameManager.getGameByID(gameID);
 		switch (connectionType) {
 			case Common.CONNECTION_TYPES.VIEWER: 
 				handleGameWSViewer(ws, game, gameID);
 				break;
 			case Common.CONNECTION_TYPES.PLAYER: 
-				var playerID = getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
+				var playerID = Common.getParameterByName(Common.PARAM_NAME_PLAYER_ID, wsUrl);
 				handleGameWSPlayer(ws, game, gameID, playerID)
 				break;
 			
@@ -201,18 +201,6 @@ WSManager.init(wss);
 
 console.log("Listening for WS connections on " + WS_PORT + "...");
 
-
-// see http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
-function getParameterByName(name, url) {
-    if (!url) url = window.location.href;
-    //url = url.toLowerCase(); // This is just to avoid case sensitiveness  
-    name = name.replace(/[\[\]]/g, "\\$&");//.toLowerCase();// This is just to avoid case sensitiveness for query parameter name
-    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
 
 
 module.exports = WSManager;

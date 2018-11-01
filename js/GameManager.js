@@ -158,6 +158,7 @@ var Game = function(gameID, gameConfig) {
 				clearInterval(timer);
 
 				startServer();
+				self.conManager.closeAndRemoveAllConnections();
 			}
 		}, 1000);
 
@@ -175,8 +176,14 @@ var Game = function(gameID, gameConfig) {
 			self.conManager.getPlayerIDs(),
 			gameConfig
 		);
+		gameServer.setOnGameOver.call(gameServer, function() {
+			console.log("Game: Game is over! Restarting in 5 seconds...");
+			setTimeout(function() {
+				console.log("Game: Restarting...");
+				startServer();
+			}, 5000);
+		});
 		self.conManager.setGameServer(gameServer);
-		self.conManager.closeAndRemoveAllConnections();
 	}
 }
 

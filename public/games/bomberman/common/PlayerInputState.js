@@ -44,6 +44,12 @@
 		getKeyBomb() {
 			return this.keyBomb;
 		}
+		setMovementKeysFalse() {
+			this.keyUp = false;
+			this.keyLeft = false;
+			this.keyRight = false;
+			this.keyDown = false;
+		}
 
 		asNetworkFrame() {
 			var result = 

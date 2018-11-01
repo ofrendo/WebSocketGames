@@ -4,9 +4,16 @@ var CONST = GameState.CONST;
 var gameStateView = new GameState(gameConfig);
 
 // Controller listening to WS messages and changing according to a playout delay buffer
+
+var useInterpolation = true;
+if (Common.getParameterByName("useInterpolation") === "false") {
+	useInterpolation = false;
+}
+var playoutDelay = parseInt(Common.getParameterByName("playoutDelay")) || 50;
+
 var networkHandler = new NetworkHandler(gameStateView, {
-	useInterpolation: true,
-	playoutDelay: 50
+	useInterpolation: useInterpolation,
+	playoutDelay: playoutDelay
 });
 
 // Open WS connection

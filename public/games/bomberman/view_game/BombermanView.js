@@ -95,13 +95,14 @@ function NetworkHandler(playerGameState, args) {
 		result.fTo = f2.frameNumber;
 		result.lambda = lambda;
 		forEach(playerGameState.getPlayers(), function(p, i) {
-			var dx = Math.round((f2[i*4 +0] - f1[i*4 +0]) * lambda);
-			var dy = Math.round((f2[i*4 +1] - f1[i*4 +1]) * lambda);
+			var dx = Math.round((f2[i*5 +0] - f1[i*5 +0]) * lambda);
+			var dy = Math.round((f2[i*5 +1] - f1[i*5 +1]) * lambda);
 
-			result.push(f1[i*4 +0] + dx); // x
-			result.push(f1[i*4 +1] + dy); // y
+			result.push(f1[i*5 +0] + dx); // x
+			result.push(f1[i*5 +1] + dy); // y
 			result.push(p.orientation); // dont interpolate orientation
 			result.push(p.moving); // dont interpolate moving
+			result.push(p.isAlive()); //dont interpolate alive
 		});
 		return result;
 	}
@@ -151,8 +152,9 @@ function BombermanView(rendererArgs) {
 		console.log("Loaded assets.");
 		
 		forEach(self.gameState.getPlayers(), function(p, i) {
-			self.playerTextures[i] = initializePlayerTextures();
+			self.playerTextures[i] = initializePlayerTextures(i);
 		});
+		console.log("Initialized " + self.gameState.getPlayers().length + " player textures.");
 
 		//self.permEntityTextures = initializePermEntityTextures(self.gameState.getPermEntities());
 		//self.permEntityTextures.isDrawn = false;
@@ -193,7 +195,7 @@ function BombermanView(rendererArgs) {
 					// TODO: Do this with an animation
 					self.stage.removeChild(oldT); // only remove old texture if it isnt empty
 				}
-				self.stage.addChild(newT); // only add new texture if it isnt empty
+				self.stage.addChildAt(newT,0); // only add new texture if it isnt empty
 				self.entityTextures[i] = newT;				
 			}
 		});
@@ -206,7 +208,21 @@ function BombermanView(rendererArgs) {
 		// Now add them
 		forEach(self.gameState.getBombs(), function(bomb) {
 			var t = getEntityTexture(bomb);
+			//t.alpha = bomb.getDurationLeft() / gameConfig.game.bombDuration;
+			var x = gameConfig.game.bombDuration - bomb.getDurationLeft();
+			if (Math.sin(x*x/50000) < 0) {
+				t.visible = false;
+			}
+			//var redMask = new PIXI.Graphics();
+			//redMask.drawRect(t.x, t.y, 100, 100);
+			//redMask.endFill();
+			//redMask.mask = t;
+
+			//self.stage.addChild(redMask);
+			//t.tint = 0xFF0000;
 			self.stage.addChild(t);
+			
+
 			self.bombTextures.push(t);
 		});
 
@@ -218,16 +234,10 @@ function BombermanView(rendererArgs) {
 		// Now add them
 		forEach(self.gameState.getFires(), function(fire) {
 			var t = getEntityTexture(fire);
+			t.alpha = fire.getDurationLeft() / gameConfig.game.fireDuration;
 			self.stage.addChild(t);
 			self.fireTextures.push(t);
 		});
-
-		/*if (self.permEntityTextures.isDrawn === false) {
-			self.permEntityTextures.isDrawn = true;
-			forEach(self.permEntityTextures, function(t) {
-				self.stage.addChild(t);
-			});
-		}*/
 
 		//console.log(self.gameState.getPermEntities().length);
 		// Need to process all things that have changed, so delta to before
@@ -268,11 +278,27 @@ function BombermanView(rendererArgs) {
 					t.gotoAndStop(0);
 				}
 			}
+			// State: alive changed
+			if (p.aliveChanged === true && p.isAlive() === false) {
+				p.aliveChanged = false;
+				self.playerTextures[i][p.orientation].alpha = 0.5;
+				self.playerTextures[i][p.orientation].rotation = 90 * Math.PI / 180;
+			}
 		});
 	}
 
+	var playerColours = [
+		0xFFFFFF, // white
+		0x000000, // black
+		0xFF0000, // red
+		0x0000FF, // blue
 
-	function initializePlayerTextures() {
+		0x00FF00, // green
+		0xFFFF00, // yellow 
+		0x800080, // purple
+		0xA52A2A  // brown
+	];
+	function initializePlayerTextures(index) {
 		var result = [];
 		for (var orientation in CONST.PLAYER_ORIENTATION) { // will be FRONT, BACK, ...
 			var flipTexture = (orientation === "SIDE_LEFT");
@@ -290,6 +316,7 @@ function BombermanView(rendererArgs) {
 			t.width = gameConfig.game.playerSize * self.scaleX;
 			//t.scale.x = self.scaleX;
 			t.height = gameConfig.game.playerSize * self.scaleY * 2;
+			t.tint = playerColours[index];
 			//t.scale.y = self.scaleY;
 			if (flipTexture === true) {
 				t.scale.x *= -1;		
@@ -326,10 +353,21 @@ function BombermanView(rendererArgs) {
 			case CONST.ENTITY_TYPES.FIRE:
 				path = CONST.ENTITY_PATHS.FIRE_PATH;
 				break;
-			case CONST.ENTITY_TYPES.POWER_UP:
-				path = CONST.ENTITY_PATHS.POWER_UP_PATH;
+			case CONST.ENTITY_TYPES.POWER_UP_MORE_BOMBS:
+				path = CONST.ENTITY_PATHS.POWER_UP_MORE_BOMBS_PATH;
+				break;
+			case CONST.ENTITY_TYPES.POWER_UP_BOMB_STRENGTH:
+				path = CONST.ENTITY_PATHS.POWER_UP_BOMB_STRENGTH_PATH;
+				break;
+			case CONST.ENTITY_TYPES.POWER_UP_SPEED:
+				path = CONST.ENTITY_PATHS.POWER_UP_SPEED_PATH;
+				break;
+			case CONST.ENTITY_TYPES.POWER_UP_BOMB_GLOVE:
+				path = CONST.ENTITY_PATHS.POWER_UP_BOMB_GLOVE_PATH;
 				break;
 		}
+		//console.log(e.getType());
+		//console.log(path);
 		var t = new PIXI.Sprite.fromImage(path);
 		t.type = e.getType();
 		t.position.set(self.scaleX*e.getPositionX(), self.scaleY*e.getPositionY());

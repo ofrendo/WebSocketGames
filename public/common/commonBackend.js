@@ -100,6 +100,9 @@ class GameServer {
 	setOnGameServerBroadcast(callback) {
 		this.onGameServerBroadcast = callback;
 	}
+	setOnGameOver(callback) {
+		this.onGameOverGameServerCallback = callback;
+	}
 	
 }
 

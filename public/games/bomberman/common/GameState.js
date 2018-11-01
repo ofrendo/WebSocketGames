@@ -21,7 +21,10 @@
 			DESTROYABLE_BLOCK: 2,
 			BOMB: 3,
 			FIRE: 4,
-			POWER_UP: 5, // each power up type has its own
+			POWER_UP_MORE_BOMBS: 5, // each power up type has its own
+			POWER_UP_BOMB_STRENGTH: 6,
+			POWER_UP_SPEED: 7,
+			POWER_UP_BOMB_GLOVE: 8,
 			PLAYER: 99
 		},
 		ENTITY_PATHS: {
@@ -30,10 +33,14 @@
 			DESTROYABLE_BLOCK_PATH: "Blocks/ExplodableBlock.png",
 			BOMB_PATH: "Bomb/Bomb_f01.png",
 			FIRE_PATH: "Flame/Flame_f00.png",
-			POWERUP_MORE_BOMBS: "NOT IMPLEMENTED"
+			POWER_UP_MORE_BOMBS_PATH: "Powerups/BombPowerup.png",
+			POWER_UP_BOMB_STRENGTH_PATH: "Powerups/FlamePowerup.png",
+			POWER_UP_SPEED_PATH: "Powerups/SpeedPowerup.png",
+			POWER_UP_BOMB_GLOVE_PATH: "NOT IMPLEMENTED" 
 		},
 		CONTROLLER: {
-			ARROW_PATH: "/games/bomberman/res/Controller/arrow.png"
+			ARROW_PATH: "/games/bomberman/res/Controller/arrow.png",
+			BOMB_PATH: "/games/bomberman/res/Controller/Bomb.png"
 		},
 		DIRECTION: {
 			UP: 0,
@@ -65,6 +72,23 @@
 		getPlayers() {
 			return this.players;
 		}
+		isGameOver() {
+			if (this.getPlayers().length === 1) {
+				return false;
+			}
+			else if (this.getPlayers().length - this.getNumberPlayersAlive() === 1) {
+				return true;
+			}
+			return false;
+		}
+		getNumberPlayersAlive() {
+			var result = 0;
+			forEach.call(this, this.getPlayers(), function(p) {
+				if (p.isAlive() === true) 
+					result++;
+			});
+			return result;
+		}
 		addEntity(e) {
 			this.entities.push(e);
 		}
@@ -74,10 +98,10 @@
 		destroyBlock(i) {
 			// TODO: Power ups
 			var oldE = this.entities[i];
-			this.entities[i] = Entity.buildEntity(
-				CONST.ENTITY_TYPES.EMPTY,
+			this.entities[i] = PowerUp.buildRandomPowerUp(
 				oldE.getPositionX(),
-				oldE.getPositionY()
+				oldE.getPositionY(),
+				this.gameConfig.game.powerUpProbs
 			);
 		}
 		addBomb(bomb) {
@@ -179,14 +203,14 @@
 		getFires() {
 			return this.fires;
 		}
-		isPlayerTouchingFire(p) {
+		isEntityTouchingFire(e) { // used for both player bomb detection and chain bomb explosions
 			var fires = this.getFires();
 			for (var i=0;i<fires.length;i++) {
 				var f = fires[i];
 				if (this.isCollision(
-						p.getPositionX(),
-						p.getPositionY(),
-						this.gameConfig.game.playerSize,
+						e.getPositionX(),
+						e.getPositionY(),
+						e.getSize(),
 						f.getPositionX(),
 						f.getPositionY(),
 						this.gameConfig.game.tileSize)
@@ -197,7 +221,70 @@
 			}
 			return false;
 		}
+		isPlayerTouchingPowerUp(p) {
+			var result = null;
+			forEach.call(this, this.getEntities(), function(e) {
+				if (e.constructor.name === "PowerUp") {
+					if (result === null && this.isCollision(
+						p.getPositionX(), 
+						p.getPositionY(), 
+						p.getSize(),
+						e.getPositionX(), 
+						e.getPositionY(), 
+						e.getSize())
+					 === true) {
+					 	// Return the entity the player is touching
+						result = e;
+					}
+				}
+			});
+			return result;
+		}
+		playerCollectPowerUp(player, powerUp) {
+			switch (powerUp.getType()) {
+				case CONST.ENTITY_TYPES.POWER_UP_MORE_BOMBS: 
+					player.incrementBombsMax();
+					break;
+				case CONST.ENTITY_TYPES.POWER_UP_BOMB_STRENGTH:
+					player.incrementBombStrength();
+					break;
+				case CONST.ENTITY_TYPES.POWER_UP_SPEED:
+					player.addSpeed(this.gameConfig.game.powerUpSpeedAdd);
+					break;
+			}
 
+			// Remove powerup
+			var i = GameState.fromRealPositionToIndex(powerUp.getPosition(), this.gameConfig.game.tileSize, this.gameConfig.game.xTiles);
+			this.entities[i] = Entity.buildEntity(
+				CONST.ENTITY_TYPES.EMPTY,
+				powerUp.getPositionX(),
+				powerUp.getPositionY()
+			);
+		}
+
+
+		isValidBombSpot(player) {
+			if (player.getBombsLeft() === 0) {
+				return false;
+			}
+			var result = true;
+			var checkEntities = this.getEntities().concat(this.getBombs());
+			forEach.call(this, checkEntities, function(e) {
+				if (e.getType() === CONST.ENTITY_TYPES.EMPTY) 
+					return;
+				if (result === true && this.isCollision(
+						player.getPositionX(), 
+						player.getPositionY(), 
+						player.getSize(),
+						e.getPositionX(), 
+						e.getPositionY(), 
+						e.getSize())
+					 === true) {
+					result = false;
+				}
+			});
+			return result;
+		}
 
 		//cycle through all entities to check if this move is OK
 		// @param player The player who wants to move
@@ -207,7 +294,8 @@
 			var result = true;
 			
 			forEach.call(this, this.getEntities(), function(e, i) {
-				if (e.getType() === CONST.ENTITY_TYPES.EMPTY) 
+				if (e.getType() === CONST.ENTITY_TYPES.EMPTY || 
+					e.constructor.name === "PowerUp") 
 					return;
 				if (result === true && this.isCollision(
 						player.getPositionX()+dx, 
@@ -218,7 +306,6 @@
 						e.getSize(), player, e)
 					 === true) {
 					result = false;
-
 				}
 			});
 			forEach.call(this, this.getBombs(), function(b, i) {
@@ -246,6 +333,7 @@
 					result = false;
 				}
 			});
+			//console.log(result);
 			return result;
 		}
 
@@ -268,11 +356,12 @@
 
 		}
 
-		isValidPlayerBomb(player) {
+		/*isValidPlayerBomb(player) {
 			return player.getBombsLeft() > 0 && // does player have any bombs left
 				this.isValidPlayerMove(player, 0, 0); // is it a valid spot: does it collide with any other bombs?
 				// meaning player can't put a bomb where there is already a bomb
-		}
+		}*/
+
 		placeBomb(player) {
 			// Round to a proper tile position: find corresponding field
 			var roundedPosition = GameState.roundToRealPosition(player.getPosition(), this.gameConfig.game.tileSize);
@@ -283,6 +372,7 @@
 			var bomb = new Bomb(roundedPosition.x, roundedPosition.y, player, this.gameConfig.game.bombDuration);
 			player.incrementBombsCurrent();
 			this.addBomb(bomb);
+			//console.log("Placed bomb");
 		}			
 
 		static getStartPositions(nPlayers, xTiles, yTiles, tileSize) {
@@ -309,7 +399,41 @@
 				result.splice(nPlayers, 4-nPlayers);
 			}
 			else if (nPlayers < 9) {
-
+				result = [
+					{ // upper left
+						x: tileSize*1.5, 
+						y: tileSize*1.5
+					},
+					{ // upper middle
+						x: tileSize*xTiles/2, 
+						y: tileSize*1.5
+					},
+					{ // upper right
+						x: tileSize*xTiles - 1.5*tileSize,
+						y: tileSize*1.5
+					},
+					{ // right middle
+						x: tileSize*xTiles - 1.5*tileSize,
+						y: tileSize*yTiles/2
+					},
+					{ // bottom right
+						x: tileSize*xTiles - 1.5*tileSize,
+						y: tileSize*yTiles - 1.5*tileSize
+					},
+					{ // bottom middle
+						x: tileSize*xTiles/2,
+						y: tileSize*yTiles - 1.5*tileSize
+					},
+					{ // bottom left
+						x: tileSize*1.5, 
+						y: tileSize*yTiles - 1.5*tileSize
+					},
+					{ // left middle
+						x: tileSize*1.5, 
+						y: tileSize*yTiles/2
+					}
+				];
+				result.splice(nPlayers, 8-nPlayers);
 			}
 			else {
 
@@ -354,6 +478,10 @@
 				x: i % xTiles,
 				y: Math.floor(i / xTiles)
 			};
+		}
+		static fromRealPositionToIndex(position, tileSize, xTiles) {
+			var tilePosition = GameState.toTilePosition(position, tileSize);
+			return GameState.fromTilePositionToIndex(tilePosition, xTiles);
 		}
 		static fromTilePositionToIndex(position, xTiles) {
 			return position.y * xTiles + position.x;
@@ -434,12 +562,15 @@
 				result.push(p.y);
 				result.push(p.orientation);
 				result.push(p.moving);
+				result.push(p.isAlive());
+				//result.push(p.getBombsMax());
+				//result.push(p.getBombStrength());
 			});
 
 			// Encode fields as one long string
 			var encodedEntities = "";
 			forEach(this.getEntities(), function(e) {
-				encodedEntities += e.getType();
+				encodedEntities += "" + e.getType();
 			});
 			result.push(encodedEntities);
 
@@ -459,14 +590,18 @@
 		playoutFrame(networkFrame) {
 			//console.log(networkFrame);
 			var copyNetworkFrame = networkFrame.slice();
+
 			forEach(this.getPlayers(), function(p, i) {
-				p.setPosition(copyNetworkFrame[i*4 +0], copyNetworkFrame[i*4 +1]);
-				p.setOrientation(copyNetworkFrame[i*4 +2]);
-				p.setMoving(copyNetworkFrame[i*4 +3]);
+				p.setPosition(copyNetworkFrame[i*5 +0], copyNetworkFrame[i*5 +1]);
+				p.setOrientation(copyNetworkFrame[i*5 +2]);
+				p.setMoving(copyNetworkFrame[i*5 +3]);
+				if (copyNetworkFrame[i*5 +4] === false && p.isAlive() === true) {
+					p.setAlive(false);
+				}
 			});
 			
 			// Remove all data to do with players
-			copyNetworkFrame.splice(0, this.getPlayers().length*4);
+			copyNetworkFrame.splice(0, this.getPlayers().length*5);
 			if (copyNetworkFrame.length > 0) {
 				this.bombs = [];
 				this.fires = [];
@@ -492,7 +627,7 @@
 			copyNetworkFrame.splice(0, 1);
 			if (copyNetworkFrame.length > 0) {
 				// Means there are bombs or fires
-				for (var i=0;i<copyNetworkFrame.length/4;i++) {
+				for (var i=0;i<copyNetworkFrame.length/5;i++) {
 					var type = copyNetworkFrame[i*5+0];
 					var playerIndex = copyNetworkFrame[i*5+3];
 					var player = this.getPlayers()[playerIndex];
@@ -527,15 +662,15 @@
 			//console.log("nPlayers=" + nPlayers);
 
 			// Create player objects
-			for (var i=0; i<nPlayers; i++) {// 4 properties of a player being sent atm
-				var player = new Player(networkFrame[i*4+0], networkFrame[i*4+1]);
-				player.setOrientation(networkFrame[i*4+2]);
-				player.setMoving(networkFrame[i*4+3]);
+			for (var i=0; i<nPlayers; i++) {// 5 properties of a player being sent atm
+				var player = new Player(networkFrame[i*5+0], networkFrame[i*5+1]);
+				player.setOrientation(networkFrame[i*5+2]);
+				player.setMoving(networkFrame[i*5+3]);
 				gameState.addPlayer(player);
 				//console.log("added player");
 				//console.log(player);
 			}
-			networkFrame.splice(0, nPlayers*4);
+			networkFrame.splice(0, nPlayers*5);
 
 			// Create entites
 			//console.log(networkFrame);
@@ -602,8 +737,11 @@
 					return new Block(x, y);
 				case CONST.ENTITY_TYPES.DESTROYABLE_BLOCK: 
 					return new DestroyableBlock(x, y);
-				case CONST.ENTITY_TYPES.POWER_UP:
-					return new PowerUp(x, y);
+				case CONST.ENTITY_TYPES.POWER_UP_MORE_BOMBS:
+				case CONST.ENTITY_TYPES.POWER_UP_BOMB_STRENGTH:
+				case CONST.ENTITY_TYPES.POWER_UP_SPEED:
+				case CONST.ENTITY_TYPES.POWER_UP_BOMB_GLOVE:
+					return new PowerUp(x, y, type);
 			}
 		}
 	}
@@ -617,22 +755,35 @@
 			this.orientationOld = null; // Use to remove texture of old orientation
 			this.moving = false; // This is only used for animation, NOT for calculating position
 			this.movingChanged = false;
-
 			this.alive = true;
+			this.aliveChanged = false;
 
 			this.bombsMax = 1;
 			this.bombsCurrent = 0;
 			this.bombStrength = 1; // how many fields does the bomb reach?
+
+			this.speed = GameState.gameConfig.game.playerSpeed;
 		}
 
 		kill() {
-			console.log("Player was killed!");
 			this.alive = false;
+		}
+		setAlive(alive) {
+			if (this.alive !== alive) {
+				this.aliveChanged = true;
+				this.alive = alive;
+			}
 		}
 		isAlive() {
 			return this.alive;
 		}
 
+		getBombsMax() {
+			return this.bombsMax;
+		}
+		setBombsMax(bombsMax) {
+			this.bombsMax = bombsMax;
+		}
 		incrementBombsMax() {
 			this.bombsMax++;
 		}
@@ -646,10 +797,20 @@
 			return this.bombsMax - this.bombsCurrent;
 		}
 		incrementBombStrength() {
-			this.bombStrengh++;
+			this.bombStrength++;
 		}
 		getBombStrength() {
 			return this.bombStrength;
+		}
+		setBombStrength(bombStrength) {
+			this.bombStrength = bombStrength;
+		}
+
+		getSpeed() {
+			return this.speed;
+		}
+		addSpeed(speed) {
+			this.speed += speed;
 		}
 
 		setMoving(moving) {
@@ -732,10 +893,31 @@
 			return CONST.ENTITY_TYPES.FIRE;
 		}
 	}
+
+
 	class PowerUp extends Entity {
-		// has a powerup "stored" now already or afterwards
+		constructor(x, y, powerUpType) {
+			super(x, y);
+			this.powerUpType = powerUpType;
+		}
+
 		getType() {
-			return CONST.ENTITY_TYPES.POWER_UP;
+			return this.powerUpType;
+		}
+
+		static buildRandomPowerUp(x, y, powerUpProbs) {
+			var r = Math.random();
+			for (var key in powerUpProbs) {
+				if (r < powerUpProbs[key]) {
+					switch(key) {
+						case "EMPTY": return new EmptyEntity(x, y);
+						case "MORE_BOMBS": return new PowerUp(x, y, CONST.ENTITY_TYPES.POWER_UP_MORE_BOMBS);
+						case "BOMB_STRENGTH": return new PowerUp(x, y, CONST.ENTITY_TYPES.POWER_UP_BOMB_STRENGTH);
+						case "SPEED": return new PowerUp(x, y, CONST.ENTITY_TYPES.POWER_UP_SPEED);
+						case "BOMB_GLOVE": return new PowerUp(x, y, CONST.ENTITY_TYPES.POWER_UP_BOMB_GLOVE);
+					}
+				}
+			}
 		}
 	}
 

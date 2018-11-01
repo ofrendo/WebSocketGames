@@ -17,7 +17,8 @@ class GameServerBomberman extends CommonBackend.GameServer {
 
 		this.gameState = GameState.buildRandomGameState(gameConfig);
 		this.playerInputStates = [];
-		this.gameStateFrameProcessor = new GameStateFrameProcessor(this.gameConfig, this.gameState, this.playerInputStates);
+		this.gameStateFrameProcessor = new GameStateFrameProcessor(this.gameConfig, this.gameState, this.playerInputStates, this);
+		this.gameStateFrameProcessor.setOnGameOver(this.onGameOverGameServer);
 	}
 
 	// Called when all players have joined
@@ -37,6 +38,7 @@ class GameServerBomberman extends CommonBackend.GameServer {
 		this.loopID = gameloop.setGameLoop(this.onGameLoop.bind(this), 1000 / this.gameConfig.server.fps);
 	}
 	stopGameLoop() {
+		this.log("Stopping game loop...");
 		gameloop.clearGameLoop(this.loopID);
 	}
 	// Called each time a player sends an input
@@ -63,7 +65,17 @@ class GameServerBomberman extends CommonBackend.GameServer {
 		this.gameStateFrameProcessor.processSnapshot(dt);
 		var networkFrame = this.gameStateFrameProcessor.getNetworkFrame();
 		this.broadcastMessage(networkFrame);
-
+	}
+	onGameOverGameServer() {
+		// GameServer: Game is over
+		console.log("GameServer: Game is over");
+		//console.log(this.onGameOverGameServerCallback);
+		//console.log(this);
+		if (typeof this.onGameOverGameServerCallback === "function") {
+			console.log("GameServer: Calling callback...");
+			this.onGameOverGameServerCallback();
+		}
+		this.stopGameLoop();
 	}
 
 }

@@ -14,7 +14,7 @@
 		"path": "bomberman",
 		"lobbyParams": {
 			"minPlayers": 1,
-			"maxPlayers": 4 
+			"maxPlayers": 8 
 		},
 		"server": {
 			"fps": 30
@@ -23,14 +23,22 @@
 			"fps": 30
 		},
 		"game": {
-			"xTiles": 17,
-			"yTiles": 17,
+			"xTiles": 21,
+			"yTiles": 21,
 			"tileSize": 50,
 			"nPlayers": 1,
 			"playerSize": 30,
-			"playerSpeed": 300,
-			"bombDuration": 1000,
-			"fireDuration": 1000
+			"playerSpeed": 200,
+			"powerUpSpeedAdd": 100,
+			"bombDuration": 2000,
+			"fireDuration": 1000,
+			"powerUpProbs": {
+				"EMPTY": 0.5,
+				"MORE_BOMBS": 0.7,
+				"BOMB_STRENGTH": 0.9,
+				"SPEED": 1,
+				"BOMB_GLOVE": 0
+			}
 		}
 	}
 ]
